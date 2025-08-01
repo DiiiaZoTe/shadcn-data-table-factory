@@ -1,27 +1,45 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import type { Column } from "@tanstack/react-table"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { MultiSelect } from "@/components/ui/multi-select"
+import { useDebouncedValue } from "@/hooks/use-debounced-value"
 import type { DataTableFieldType } from "@/types/data-table"
 
 interface ColumnFilterProps<T> {
   column: Column<T, unknown>
   type: DataTableFieldType
   options?: string[]
+  filterable?: boolean
 }
 
-export function ColumnFilter<T>({ column, type, options }: ColumnFilterProps<T>) {
+export function ColumnFilter<T>({ column, type, options, filterable = true }: ColumnFilterProps<T>) {
   const filterValue = column.getFilterValue() as string | string[]
+  const [localValue, setLocalValue] = useState<string | string[]>(filterValue || "")
+  const debouncedValue = useDebouncedValue(localValue, 300)
+
+  // Update local value when filter value changes externally
+  useEffect(() => {
+    setLocalValue(filterValue || "")
+  }, [filterValue])
+
+  // Apply debounced value to column filter
+  useEffect(() => {
+    if (filterable && (type === "text" || type === "number")) {
+      column.setFilterValue(debouncedValue === "" ? undefined : debouncedValue)
+    }
+  }, [debouncedValue, column, type, filterable])
 
   switch (type) {
     case "text":
       return (
         <Input
           placeholder="Filter..."
-          value={(filterValue as string) ?? ""}
-          onChange={(event) => column.setFilterValue(event.target.value)}
+          value={(localValue as string) ?? ""}
+          onChange={(event) => filterable && setLocalValue(event.target.value)}
+          disabled={!filterable}
           className="h-8 w-full"
         />
       )
@@ -31,8 +49,9 @@ export function ColumnFilter<T>({ column, type, options }: ColumnFilterProps<T>)
         <Input
           type="number"
           placeholder="Filter..."
-          value={(filterValue as string) ?? ""}
-          onChange={(event) => column.setFilterValue(event.target.value)}
+          value={(localValue as string) ?? ""}
+          onChange={(event) => filterable && setLocalValue(event.target.value)}
+          disabled={!filterable}
           className="h-8 w-full"
         />
       )
@@ -41,7 +60,8 @@ export function ColumnFilter<T>({ column, type, options }: ColumnFilterProps<T>)
       return (
         <Select
           value={(filterValue as string) ?? "all"}
-          onValueChange={(value) => column.setFilterValue(value === "all" ? "" : value)}
+          onValueChange={(value) => filterable && column.setFilterValue(value === "all" ? "" : value)}
+          disabled={!filterable}
         >
           <SelectTrigger className="h-8 w-full">
             <SelectValue placeholder="All" />
@@ -62,7 +82,7 @@ export function ColumnFilter<T>({ column, type, options }: ColumnFilterProps<T>)
         <MultiSelect
           options={options || []}
           selected={Array.isArray(filterValue) ? filterValue : []}
-          onChange={(selected) => column.setFilterValue(selected.length > 0 ? selected : "")}
+          onChange={(selected) => filterable && column.setFilterValue(selected.length > 0 ? selected : "")}
           placeholder="Filter options..."
           className="w-full"
         />
@@ -72,7 +92,8 @@ export function ColumnFilter<T>({ column, type, options }: ColumnFilterProps<T>)
       return (
         <Select
           value={(filterValue as string) ?? "all"}
-          onValueChange={(value) => column.setFilterValue(value === "all" ? "" : value)}
+          onValueChange={(value) => filterable && column.setFilterValue(value === "all" ? "" : value)}
+          disabled={!filterable}
         >
           <SelectTrigger className="h-8 w-full">
             <SelectValue placeholder="All" />
@@ -90,12 +111,13 @@ export function ColumnFilter<T>({ column, type, options }: ColumnFilterProps<T>)
         <Input
           type="date"
           value={(filterValue as string) ?? ""}
-          onChange={(event) => column.setFilterValue(event.target.value)}
+          onChange={(event) => filterable && column.setFilterValue(event.target.value)}
+          disabled={!filterable}
           className="h-8 w-full"
         />
       )
 
     default:
-      return null
+      return <Input placeholder="Filter..." disabled className="h-8 w-full" />
   }
 }

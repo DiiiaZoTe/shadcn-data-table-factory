@@ -36,7 +36,7 @@ export function MultiSelect({
   }
 
   return (
-    <div className={cn("space-y-2", className)}>
+    <div className={cn("flex flex-col gap-2", className)}>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
@@ -70,7 +70,7 @@ export function MultiSelect({
       {selected.length > 0 && (
         <div className="flex flex-wrap gap-1">
           {selected.map((option) => (
-            <Badge key={option} variant="secondary" className="gap-1">
+            <Badge key={option} variant="secondary" className="flex items-center gap-1">
               {option}
               <Button
                 variant="ghost"

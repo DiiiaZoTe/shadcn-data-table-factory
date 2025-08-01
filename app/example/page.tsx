@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { DataTableFactory } from "@/components/data-table/data-table-factory"
 import type { DataTableShape, DataTableAction } from "@/types/data-table"
-import { Eye, Trash2, Edit } from "lucide-react"
+import { Eye, Trash2 } from "lucide-react"
 
 // Example data type
 type User = {
@@ -17,42 +17,27 @@ type User = {
   skills: string[]
 }
 
-// Example data
-const users: User[] = [
-  {
-    id: "1",
-    name: "John Doe",
-    email: "john@example.com",
-    age: 30,
-    isActive: true,
-    role: "admin",
-    joinDate: "2023-01-15",
-    skills: ["React", "TypeScript"],
-  },
-  {
-    id: "2",
-    name: "Jane Smith",
-    email: "jane@example.com",
-    age: 25,
-    isActive: false,
-    role: "user",
-    joinDate: "2023-03-20",
-    skills: ["Vue", "JavaScript"],
-  },
-  {
-    id: "3",
-    name: "Bob Johnson",
-    email: "bob@example.com",
-    age: 35,
-    isActive: true,
-    role: "moderator",
-    joinDate: "2022-11-10",
-    skills: ["Angular", "Python"],
-  },
-]
+// Generate more example data for pagination testing
+const generateUsers = (count: number): User[] => {
+  const roles = ["admin", "user", "moderator"]
+  const skills = ["React", "Vue", "Angular", "TypeScript", "JavaScript", "Python", "Node.js", "GraphQL"]
+  const names = ["John", "Jane", "Bob", "Alice", "Charlie", "Diana", "Eve", "Frank", "Grace", "Henry"]
+  const surnames = ["Doe", "Smith", "Johnson", "Brown", "Davis", "Miller", "Wilson", "Moore", "Taylor", "Anderson"]
+
+  return Array.from({ length: count }, (_, i) => ({
+    id: (i + 1).toString(),
+    name: `${names[i % names.length]} ${surnames[i % surnames.length]}`,
+    email: `user${i + 1}@example.com`,
+    age: 20 + (i % 50),
+    isActive: Math.random() > 0.3,
+    role: roles[i % roles.length],
+    joinDate: new Date(2020 + (i % 4), i % 12, (i % 28) + 1).toISOString().split("T")[0],
+    skills: skills.slice(0, (i % 4) + 1),
+  }))
+}
 
 export default function ExamplePage() {
-  const [data, setData] = useState<User[]>(users)
+  const [data, setData] = useState<User[]>(generateUsers(150)) // Generate 150 users for pagination testing
   const [selectedRows, setSelectedRows] = useState<User[]>([])
 
   // Define the shape of the table
@@ -68,10 +53,11 @@ export default function ExamplePage() {
     email: {
       label: "Email Address",
       type: "text",
-      editable: false,
+      editable: true, // Changed to true to test hover edit with custom render
       sortable: true,
       filterable: true,
       searchable: true,
+      render: (value: string) => <span className="font-bold text-blue-600">{value}</span>,
     },
     age: {
       label: "Age",
@@ -93,7 +79,7 @@ export default function ExamplePage() {
       options: ["admin", "user", "moderator"],
       editable: true,
       sortable: true,
-      filterable: true,
+      filterable: false,
     },
     joinDate: {
       label: "Join Date",
@@ -105,7 +91,7 @@ export default function ExamplePage() {
     skills: {
       label: "Skills",
       type: "multi-select",
-      options: ["React", "Vue", "Angular", "TypeScript", "JavaScript", "Python"],
+      options: ["React", "Vue", "Angular", "TypeScript", "JavaScript", "Python", "Node.js", "GraphQL"],
       editable: true,
       sortable: false,
       filterable: true,
@@ -114,7 +100,7 @@ export default function ExamplePage() {
           {value.map((skill) => (
             <span
               key={skill}
-              className="inline-flex items-center rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700"
+              className="inline-flex items-center rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800 border border-green-200"
             >
               {skill}
             </span>
@@ -156,10 +142,10 @@ export default function ExamplePage() {
   }
 
   return (
-    <div className="container mx-auto py-10">
+    <div className="container mx-auto py-10 px-4">
       <div className="mb-6">
         <h1 className="text-3xl font-bold">Data Table Factory Example</h1>
-        <p className="text-muted-foreground">A comprehensive example showing all features of the data table factory.</p>
+        <p className="text-muted-foreground">A comprehensive example showing all features including pagination.</p>
       </div>
 
       {selectedRows.length > 0 && (
@@ -177,8 +163,31 @@ export default function ExamplePage() {
         editable={true}
         onSave={handleSave}
         onSelectionChange={handleSelectionChange}
+        pagination={{
+          enabled: true,
+          defaultPageSize: 25,
+          pageSizeOptions: [50, 100, 200],
+        }}
         className="w-full"
       />
+
+      <div className="mt-8 p-4 bg-muted/50 rounded-lg">
+        <h3 className="font-semibold mb-2">Test Custom Render + Hover Edit:</h3>
+        <div className="text-sm text-muted-foreground space-y-1">
+          <p>
+            • <strong>Email:</strong> Has custom render (bold blue text) + editable=true
+          </p>
+          <p>
+            • <strong>Skills:</strong> Has custom render (green badges) + editable=true
+          </p>
+          <p>
+            • <strong>Name:</strong> No custom render + editable=true (control)
+          </p>
+          <p>
+            • <strong>Test:</strong> Hover over each column to see if edit button appears
+          </p>
+        </div>
+      </div>
     </div>
   )
 }

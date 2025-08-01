@@ -18,6 +18,21 @@ interface HoverableCellProps<T> {
   render?: (value: any) => React.ReactNode
 }
 
+// Helper function to format date consistently
+const formatDateTime = (value: any) => {
+  if (!value) return ""
+  const date = new Date(value)
+  const dateStr = date.toLocaleDateString()
+  const timeStr = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+
+  return (
+    <div className="text-sm">
+      <div>{dateStr}</div>
+      <div className="text-muted-foreground">{timeStr}</div>
+    </div>
+  )
+}
+
 export function HoverableCell<T>({
   value,
   type,
@@ -44,19 +59,6 @@ export function HoverableCell<T>({
     }
   }, [isEditing])
 
-  if (render) {
-    return <div className="min-w-0 w-full">{render(value)}</div>
-  }
-
-  // Handle boolean fields specially - they can be directly interactive
-  if (type === "boolean" && editable) {
-    return (
-      <div className="min-w-0 w-full">
-        <Switch checked={value ?? false} onCheckedChange={(checked) => onSave(checked)} />
-      </div>
-    )
-  }
-
   if (isEditing) {
     return (
       <div className="min-w-0 w-full" ref={editTriggerRef}>
@@ -74,26 +76,44 @@ export function HoverableCell<T>({
     )
   }
 
-  const renderValue = () => {
+  const renderDefaultValue = () => {
+    // Default rendering based on type (when no custom render function)
     switch (type) {
       case "boolean":
         return <Switch checked={value ?? false} disabled />
       case "date":
-        return value ? new Date(value).toLocaleDateString() : placeholder || ""
+        return value ? formatDateTime(value) : <span className="text-muted-foreground">{placeholder || ""}</span>
       case "multi-select":
-        return Array.isArray(value) ? value.join(", ") : placeholder || ""
+        return Array.isArray(value) ? (
+          <div className="flex flex-wrap gap-1">
+            {value.map((item) => (
+              <span
+                key={item}
+                className="inline-flex items-center rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700"
+              >
+                {item}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <span className="text-muted-foreground">{placeholder || ""}</span>
+        )
       default:
         return value || placeholder || ""
     }
   }
 
+  // Always wrap in hover container, regardless of custom render
   return (
     <div
-      className="relative min-w-0 w-full"
+      className="relative min-w-0 w-full group"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div className="min-w-0 pr-8">{renderValue()}</div>
+      <div className="min-w-0 pr-8">
+        {/* Use custom render if provided, otherwise use default */}
+        {render ? render(value) : renderDefaultValue()}
+      </div>
       {editable && isHovered && (
         <Button
           variant="ghost"
@@ -107,11 +127,6 @@ export function HoverableCell<T>({
           <Edit2 className="h-3 w-3" />
         </Button>
       )}
-      <style jsx>{`
-        .relative:hover .absolute {
-          opacity: 1;
-        }
-      `}</style>
     </div>
   )
 }

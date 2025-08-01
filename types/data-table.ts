@@ -22,6 +22,12 @@ export type DataTableAction<T> = {
   icon?: ReactNode
 }
 
+export type DataTablePaginationConfig = {
+  enabled?: boolean // true by default
+  defaultPageSize?: number // 25 by default
+  pageSizeOptions?: number[] // [50, 100] by default (defaultPageSize is always added)
+}
+
 export type DataTableProps<T> = {
   data: T[]
   shape: DataTableShape<T>
@@ -29,6 +35,7 @@ export type DataTableProps<T> = {
   editable?: boolean
   onSave?: (row: T) => void
   onSelectionChange?: (selectedRows: T[]) => void
+  pagination?: DataTablePaginationConfig
   className?: string
 }
 

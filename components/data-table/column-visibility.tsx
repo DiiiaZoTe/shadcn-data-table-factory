@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Settings2, GripVertical, ChevronUp, ChevronDown } from "lucide-react"
+import { cn } from "@/lib/utils"
 import type { ColumnVisibility } from "@/types/data-table"
 
 interface ColumnVisibilityProps<T> {
@@ -36,8 +37,18 @@ export function ColumnVisibilityControl<T>({
   }
 
   const toggleColumn = (columnKey: string) => {
-    // Fix: Check if column is currently visible (default to true if not set)
+    // Check if column is currently visible (default to true if not set)
     const isCurrentlyVisible = columnVisibility[columnKey] !== false
+
+    // If trying to hide a column, check if it's the last visible one
+    if (isCurrentlyVisible) {
+      const visibleColumns = columns.filter((col) => columnVisibility[col.key] !== false)
+      if (visibleColumns.length <= 1) {
+        // Don't allow hiding the last visible column
+        return
+      }
+    }
+
     onColumnVisibilityChange({
       ...columnVisibility,
       [columnKey]: !isCurrentlyVisible,
@@ -58,11 +69,11 @@ export function ColumnVisibilityControl<T>({
   }
 
   return (
-    <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
+    <DropdownMenu open={isOpen} onOpenChange={setIsOpen} modal>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm">
-          <Settings2 className="h-4 w-4 mr-2" />
-          Columns
+        <Button variant="outline" className="size-10 md:size-auto bg-transparent">
+          <Settings2 className="h-4 w-4" />
+          <span className="ml-2 hidden md:block">Columns</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-80">
@@ -77,6 +88,8 @@ export function ColumnVisibilityControl<T>({
                     if (!column) return null
 
                     const isVisible = columnVisibility[columnKey] !== false
+                    const visibleColumns = columns.filter((col) => columnVisibility[col.key] !== false)
+                    const isLastVisible = isVisible && visibleColumns.length <= 1
 
                     return (
                       <Draggable key={columnKey} draggableId={columnKey} index={index}>
@@ -84,23 +97,38 @@ export function ColumnVisibilityControl<T>({
                           <div
                             ref={provided.innerRef}
                             {...provided.draggableProps}
-                            className={`flex items-center space-x-2 py-1 px-2 rounded hover:bg-muted transition-colors ${
-                              snapshot.isDragging ? "bg-muted shadow-lg border border-border" : ""
-                            }`}
+                            className={cn(
+                              "flex items-center gap-2 py-1 px-2 rounded-md hover:bg-muted transition-colors",
+                              snapshot.isDragging && "bg-muted shadow-lg border border-border",
+                            )}
                             style={{
                               ...provided.draggableProps.style,
                               // Ensure the dragged item maintains its appearance
                               ...(snapshot.isDragging && {
                                 transform: provided.draggableProps.style?.transform,
                               }),
+                              left: "auto !important",
+                              top: "auto !important",
                             }}
                           >
                             <div {...provided.dragHandleProps} className="cursor-grab active:cursor-grabbing">
                               <GripVertical className="h-4 w-4 text-muted-foreground" />
                             </div>
-                            <Checkbox checked={isVisible} onCheckedChange={() => toggleColumn(columnKey)} />
+                            <div className="relative">
+                              <Checkbox
+                                checked={isVisible}
+                                onCheckedChange={() => toggleColumn(columnKey)}
+                                disabled={isLastVisible}
+                                className={cn(isLastVisible && "opacity-50")}
+                              />
+                              {isLastVisible && (
+                                <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-popover text-popover-foreground text-xs px-2 py-1 rounded shadow-md border opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+                                  At least one column must be visible
+                                </div>
+                              )}
+                            </div>
                             <span
-                              className="text-sm flex-1 select-none"
+                              className={cn("text-sm flex-1 select-none", isLastVisible && "text-muted-foreground")}
                               style={{
                                 // Force text to remain visible during drag
                                 opacity: 1,
@@ -108,6 +136,7 @@ export function ColumnVisibilityControl<T>({
                               }}
                             >
                               {column.label}
+                              {isLastVisible && " (required)"}
                             </span>
                             <div className="flex flex-col gap-0">
                               <Button
