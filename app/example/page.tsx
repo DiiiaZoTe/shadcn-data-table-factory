@@ -57,7 +57,6 @@ export default function ExamplePage() {
       sortable: true,
       filterable: true,
       searchable: true,
-      render: (value: string) => <span className="font-bold text-blue-600">{value}</span>,
     },
     age: {
       label: "Age",
@@ -100,7 +99,7 @@ export default function ExamplePage() {
           {value.map((skill) => (
             <span
               key={skill}
-              className="inline-flex items-center rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800 border border-green-200"
+              className="inline-flex items-center rounded-full bg-green-100 px-1.5 py-0.5 text-xs font-medium text-green-800 border border-green-200"
             >
               {skill}
             </span>

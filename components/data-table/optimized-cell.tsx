@@ -1,36 +1,39 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { memo } from "react"
-import { Switch } from "@/components/ui/switch"
-import { HoverableCell } from "./hoverable-cell"
-import type { DataTableFieldType } from "@/types/data-table"
+import type React from "react";
+import { memo } from "react";
+import { Switch } from "@/components/ui/switch";
+import { HoverableCell } from "./hoverable-cell";
+import type { DataTableFieldType } from "@/types/data-table";
 
 interface OptimizedCellProps<T> {
-  value: any
-  type: DataTableFieldType
-  options?: string[]
-  placeholder?: string
-  editable?: boolean
-  render?: (value: any) => React.ReactNode
-  onSave?: (value: any) => void
-  isEditing?: boolean
+  value: any;
+  type: DataTableFieldType;
+  options?: string[];
+  placeholder?: string;
+  editable?: boolean;
+  render?: (value: any) => React.ReactNode;
+  onSave?: (value: any) => void;
+  isEditing?: boolean;
 }
 
 // Helper function to format date consistently
 const formatDateTime = (value: any) => {
-  if (!value) return ""
-  const date = new Date(value)
-  const dateStr = date.toLocaleDateString()
-  const timeStr = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+  if (!value) return "";
+  const date = new Date(value);
+  const dateStr = date.toLocaleDateString();
+  const timeStr = date.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
   return (
     <div className="text-sm">
       <div>{dateStr}</div>
       <div className="text-muted-foreground">{timeStr}</div>
     </div>
-  )
-}
+  );
+};
 
 // Aggressively memoized cell component
 export const OptimizedCell = memo(
@@ -46,21 +49,24 @@ export const OptimizedCell = memo(
   }: OptimizedCellProps<T>) {
     // If row is being edited, don't render anything (handled by RowEditor)
     if (isEditing) {
-      return null
-    }
-
-    // If custom render function is provided, use it
-    if (render) {
-      return <>{render(value)}</>
+      return null;
     }
 
     // For simple, non-editable values, render directly without components
     if (!editable) {
+      // If custom render function is provided for non-editable cells, use it
+      if (render) {
+        return <>{render(value)}</>;
+      }
       switch (type) {
         case "boolean":
-          return <Switch checked={value ?? false} disabled />
+          return <Switch checked={value ?? false} disabled />;
         case "date":
-          return value ? formatDateTime(value) : <span className="text-muted-foreground">{placeholder || ""}</span>
+          return value ? (
+            formatDateTime(value)
+          ) : (
+            <span className="text-muted-foreground">{placeholder || ""}</span>
+          );
         case "multi-select":
           return Array.isArray(value) ? (
             <div className="flex flex-wrap gap-1">
@@ -75,16 +81,16 @@ export const OptimizedCell = memo(
             </div>
           ) : (
             <span className="text-muted-foreground">{placeholder || ""}</span>
-          )
+          );
         default:
-          return <span>{value || placeholder || ""}</span>
+          return <span>{value || placeholder || ""}</span>;
       }
     }
 
     // For editable cells, use the HoverableCell component
     return (
       <HoverableCell
-        value={type === "boolean" ? (value ?? false) : value}
+        value={type === "boolean" ? value ?? false : value}
         type={type}
         options={options}
         placeholder={placeholder}
@@ -92,7 +98,7 @@ export const OptimizedCell = memo(
         render={render}
         onSave={onSave || (() => {})}
       />
-    )
+    );
   },
   (prevProps, nextProps) => {
     // Custom comparison function for better memoization
@@ -102,6 +108,6 @@ export const OptimizedCell = memo(
       prevProps.editable === nextProps.editable &&
       prevProps.isEditing === nextProps.isEditing &&
       JSON.stringify(prevProps.options) === JSON.stringify(nextProps.options)
-    )
-  },
-)
+    );
+  }
+);
