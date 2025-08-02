@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import { useState, useMemo, useCallback, useRef } from "react"
+import { useState, useMemo, useCallback, useRef } from "react";
 import {
   type ColumnDef,
   flexRender,
@@ -14,145 +14,184 @@ import {
   type ColumnFiltersState,
   type RowSelectionState,
   type PaginationState,
-} from "@tanstack/react-table"
-import { ArrowUp, ArrowDown, ArrowUpDown, Search, X } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Input } from "@/components/ui/input"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import type { DataTableProps } from "@/types/data-table"
-import { ColumnFilter } from "./column-filters"
-import { ColumnVisibilityControl } from "./column-visibility"
-import { DataTablePagination } from "./pagination"
-import { OptimizedRow } from "./optimized-row"
-import { RowEditor } from "./row-editor"
-import { useDebouncedValue } from "@/hooks/use-debounced-value"
-import { cn } from "@/lib/utils"
+} from "@tanstack/react-table";
+import {
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
+  Search,
+  X,
+  Lightbulb,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import type { DataTableProps, DataTableAction } from "@/types/data-table";
+import { ColumnFilter } from "./column-filters";
+import { ColumnControls } from "./column-controls";
+import { DataTablePagination } from "./pagination";
+import { DataTableRow, RowEditor } from "./row";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { cn } from "@/lib/utils";
+
+// Stable empty array to prevent infinite re-renders
+const EMPTY_ACTIONS: DataTableAction<any>[] = [];
 
 export function DataTableFactory<T extends Record<string, any>>({
   data,
   shape,
-  actions = [],
+  actions = EMPTY_ACTIONS,
   editable = false,
-  onSave,
+  onRowSave,
   onSelectionChange,
   pagination = {},
   className,
+  filterable = true,
+  sortable = true,
+  searchable = true,
+  hideable = true,
+  reorderable = true,
 }: DataTableProps<T>) {
   // Pagination configuration with defaults
   const paginationConfig = {
     enabled: pagination.enabled ?? true,
     defaultPageSize: pagination.defaultPageSize ?? 25,
     pageSizeOptions: pagination.pageSizeOptions ?? [50, 100],
-  }
+  };
 
   // Create complete page size options (always include default)
   const allPageSizeOptions = Array.from(
-    new Set([paginationConfig.defaultPageSize, ...paginationConfig.pageSizeOptions]),
-  ).sort((a, b) => a - b)
+    new Set([
+      paginationConfig.defaultPageSize,
+      ...paginationConfig.pageSizeOptions,
+    ])
+  ).sort((a, b) => a - b);
 
-  const [sorting, setSorting] = useState<SortingState>([])
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
-  const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
-  const [globalFilter, setGlobalFilter] = useState("")
-  const [columnOrder, setColumnOrder] = useState<string[]>(Object.keys(shape).filter((key) => shape[key]))
-  const [editingRowId, setEditingRowId] = useState<string | null>(null)
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [globalFilter, setGlobalFilter] = useState("");
+  const [columnOrder, setColumnOrder] = useState<string[]>(
+    Object.keys(shape).filter((key) => shape[key])
+  );
+  const [editingRowId, setEditingRowId] = useState<string | null>(null);
   const [paginationState, setPaginationState] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: paginationConfig.defaultPageSize,
-  })
+  });
 
   // Use ref to store the callback to avoid dependency issues
-  const onSelectionChangeRef = useRef(onSelectionChange)
-  onSelectionChangeRef.current = onSelectionChange
+  const onSelectionChangeRef = useRef(onSelectionChange);
+  onSelectionChangeRef.current = onSelectionChange;
 
   // Debounce global filter for better performance
-  const debouncedGlobalFilter = useDebouncedValue(globalFilter, 300)
+  const debouncedGlobalFilter = useDebouncedValue(globalFilter, 300);
 
-  // Optimized filter functions with memoization
-  const optimizedFilterFn = useCallback(
+  // Custom column filter function with memoization
+  const columnFilterFn = useCallback(
     (row: any, id: string, value: any) => {
-      const config = shape[id as keyof T]
-      if (!config) return true
+      const config = shape[id as keyof T];
+      if (!config) return true;
 
-      const cellValue = row.getValue(id)
-      if (!value || value === "all") return true
+      // If global filtering is disabled, don't filter anything
+      if (!filterable) return true;
+
+      // If this specific column has filtering disabled, don't filter
+      if (config.filterable === false) return true;
+
+      const cellValue = row.getValue(id);
+      if (!value || value === "all") return true;
 
       switch (config.type) {
         case "boolean":
-          return String(cellValue) === value
+          return String(cellValue) === value;
         case "select":
-          return cellValue === value
+          return cellValue === value;
         case "multi-select":
           if (Array.isArray(value) && value.length > 0) {
-            const cellArray = Array.isArray(cellValue) ? cellValue : []
-            return value.some((filterVal: string) => cellArray.includes(filterVal))
+            const cellArray = Array.isArray(cellValue) ? cellValue : [];
+            return value.some((filterVal: string) =>
+              cellArray.includes(filterVal)
+            );
           }
-          return true
+          return true;
         case "text":
         case "number":
         default:
-          const cellStr = String(cellValue).toLowerCase()
-          const valueStr = String(value).toLowerCase()
-          return cellStr.includes(valueStr)
+          const cellStr = String(cellValue).toLowerCase();
+          const valueStr = String(value).toLowerCase();
+          return cellStr.includes(valueStr);
       }
     },
-    [shape],
-  )
+    [shape, filterable]
+  );
 
-  // Optimized global filter function
-  const optimizedGlobalFilterFn = useCallback(
+  // Custom global filter function
+  const globalFilterFn = useCallback(
     (row: any, columnId: string, filterValue: string) => {
-      const config = shape[columnId as keyof T]
-      if (config?.searchable === false) return true
+      // If global search is disabled, don't filter anything
+      if (!searchable) return true;
 
-      const value = row.getValue(columnId)
-      const searchStr = String(value).toLowerCase()
-      const filterStr = String(filterValue).toLowerCase()
-      return searchStr.includes(filterStr)
+      const config = shape[columnId as keyof T];
+      if (config?.searchable === false) return true;
+
+      const value = row.getValue(columnId);
+      const searchStr = String(value).toLowerCase();
+      const filterStr = String(filterValue).toLowerCase();
+      return searchStr.includes(filterStr);
     },
-    [shape],
-  )
+    [shape, searchable]
+  );
 
   // Function to calculate and call onSelectionChange
   const handleSelectionChange = useCallback(
     (newSelection: RowSelectionState, tableInstance: any) => {
       if (onSelectionChangeRef.current) {
-        const selectedRowIndices = Object.keys(newSelection).filter((key) => newSelection[key])
-        const selectedRows: T[] = []
+        const selectedRowIndices = Object.keys(newSelection).filter(
+          (key) => newSelection[key]
+        );
+        const selectedRows: T[] = [];
 
         // Get the current visible rows from the table
-        const currentRows = tableInstance.getRowModel().rows
+        const currentRows = tableInstance.getRowModel().rows;
 
         selectedRowIndices.forEach((index) => {
-          const numIndex = Number.parseInt(index)
+          const numIndex = Number.parseInt(index);
           if (paginationConfig.enabled) {
             // For paginated tables, use the current page rows
-            const row = currentRows[numIndex]
+            const row = currentRows[numIndex];
             if (row?.original) {
-              selectedRows.push(row.original)
+              selectedRows.push(row.original);
             }
           } else {
             // For non-paginated tables, use the filtered rows
-            const filteredRows = tableInstance.getFilteredRowModel().rows
-            const row = filteredRows[numIndex]
+            const filteredRows = tableInstance.getFilteredRowModel().rows;
+            const row = filteredRows[numIndex];
             if (row?.original) {
-              selectedRows.push(row.original)
+              selectedRows.push(row.original);
             }
           }
-        })
+        });
 
-        onSelectionChangeRef.current(selectedRows)
+        onSelectionChangeRef.current(selectedRows);
       }
     },
-    [paginationConfig.enabled],
-  )
+    [paginationConfig.enabled]
+  );
 
   // Simplified columns - only for TanStack Table structure, not rendering
   const columns = useMemo<ColumnDef<T>[]>(() => {
-    const cols: ColumnDef<T>[] = []
+    const cols: ColumnDef<T>[] = [];
 
     // Selection column - fixed width
     cols.push({
@@ -161,7 +200,9 @@ export function DataTableFactory<T extends Record<string, any>>({
         <div className="flex items-center justify-center w-8 min-w-8 max-w-8 mx-auto">
           <Checkbox
             checked={table.getIsAllPageRowsSelected()}
-            onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+            onCheckedChange={(value) =>
+              table.toggleAllPageRowsSelected(!!value)
+            }
             aria-label="Select all"
           />
         </div>
@@ -172,33 +213,45 @@ export function DataTableFactory<T extends Record<string, any>>({
       size: 48, // 48px = w-12
       minSize: 48,
       maxSize: 48,
-    })
+    });
 
     // Data columns - use columnOrder for proper ordering
     columnOrder.forEach((key) => {
-      const config = shape[key as keyof T]
-      if (!config) return
+      const config = shape[key as keyof T];
+      if (!config) return;
 
       cols.push({
         id: key, // Use key as id for proper column identification
         accessorKey: key,
         header: ({ column }) => {
-          const canSort = config.sortable !== false
-          const sortedIndex = sorting.findIndex((sort) => sort.id === key)
-          const sortDirection = sortedIndex >= 0 ? sorting[sortedIndex].desc : null
+          const canSort = sortable && config.sortable !== false;
+          const sortedIndex = sorting.findIndex((sort) => sort.id === key);
+          const sortDirection =
+            sortedIndex >= 0 ? sorting[sortedIndex].desc : null;
+
+          const hasFilter = filterable && config.filterable !== false;
+          const anyColumnHasFilter =
+            filterable &&
+            Object.values(shape).some((config) => config.filterable !== false);
 
           return (
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-col">
+              <div className="flex items-center gap-2 min-h-[20px]">
                 {canSort ? (
                   <Button
                     variant="ghost"
                     onClick={(e) => {
-                      const isMultiSort = e.shiftKey || e.ctrlKey || e.metaKey
+                      const isMultiSort = e.shiftKey || e.ctrlKey || e.metaKey;
                       if (isMultiSort) {
-                        column.toggleSorting(column.getIsSorted() === "asc", true)
+                        column.toggleSorting(
+                          column.getIsSorted() === "asc",
+                          true
+                        );
                       } else {
-                        column.toggleSorting(column.getIsSorted() === "asc", false)
+                        column.toggleSorting(
+                          column.getIsSorted() === "asc",
+                          false
+                        );
                       }
                     }}
                     className="h-auto p-0 font-medium hover:bg-transparent"
@@ -213,7 +266,10 @@ export function DataTableFactory<T extends Record<string, any>>({
                         <ArrowUp className="h-4 w-4" />
                       )}
                       {sortedIndex >= 0 && sorting.length > 1 && (
-                        <Badge variant="secondary" className="h-5 w-5 p-0 text-xs flex items-center justify-center">
+                        <Badge
+                          variant="secondary"
+                          className="h-5 w-5 p-0 text-xs flex items-center justify-center"
+                        >
                           {sortedIndex + 1}
                         </Badge>
                       )}
@@ -223,37 +279,68 @@ export function DataTableFactory<T extends Record<string, any>>({
                   <span className="font-medium">{config.label}</span>
                 )}
               </div>
-              {/* Always show filter input for visual consistency */}
-              <ColumnFilter
-                column={column}
-                type={config.type}
-                options={config.options}
-                filterable={config.filterable !== false}
-              />
+              {/* Add spacing for alignment if any column has filters */}
+              {anyColumnHasFilter && (
+                <div className="mt-2">
+                  {hasFilter ? (
+                    <ColumnFilter
+                      column={column}
+                      type={config.type}
+                      options={config.options}
+                      filterable={true}
+                    />
+                  ) : (
+                    <div className="h-8" />
+                  )}
+                </div>
+              )}
             </div>
-          )
+          );
         },
-        cell: () => null, // We handle this in OptimizedRow
-        filterFn: optimizedFilterFn,
-      })
-    })
+        cell: () => null, // We handle this in DataTableRow
+        filterFn: columnFilterFn,
+      });
+    });
 
     // Actions column - fixed width (52px content + 16px padding = 68px total)
     if (editable || actions.length > 0) {
       cols.push({
         id: "actions",
-        header: "Actions",
-        cell: () => null, // We handle this in OptimizedRow
+        header: () => {
+          const anyColumnHasFilter =
+            filterable &&
+            Object.values(shape).some((config) => config.filterable !== false);
+
+          return (
+            <div className="flex flex-col">
+              <div className="flex items-center gap-2 min-h-[20px]">
+                <span className="font-medium">Actions</span>
+              </div>
+              {/* Add spacing only if other columns have filters for alignment */}
+              {anyColumnHasFilter && <div className="mt-2 h-8" />}
+            </div>
+          );
+        },
+        cell: () => null, // We handle this in DataTableRow
         enableSorting: false,
         enableHiding: false,
         size: 68, // 68px total (52px content + 16px padding)
         minSize: 68,
         maxSize: 68,
-      })
+      });
     }
 
-    return cols
-  }, [shape, actions, editable, columnOrder, sorting, optimizedFilterFn])
+    return cols;
+  }, [
+    shape,
+    actions,
+    editable,
+    columnOrder,
+    sorting,
+    columnFilterFn,
+    sortable,
+    filterable,
+  ]);
 
   const table = useReactTable({
     data,
@@ -263,20 +350,25 @@ export function DataTableFactory<T extends Record<string, any>>({
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: paginationConfig.enabled ? getPaginationRowModel() : undefined,
+    getPaginationRowModel: paginationConfig.enabled
+      ? getPaginationRowModel()
+      : undefined,
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: (updater) => {
-      const newSelection = typeof updater === "function" ? updater(rowSelection) : updater
-      setRowSelection(newSelection)
+      const newSelection =
+        typeof updater === "function" ? updater(rowSelection) : updater;
+      setRowSelection(newSelection);
 
       // Call the selection change handler immediately
       setTimeout(() => {
-        handleSelectionChange(newSelection, table)
-      }, 0)
+        handleSelectionChange(newSelection, table);
+      }, 0);
     },
     onGlobalFilterChange: setGlobalFilter,
-    globalFilterFn: optimizedGlobalFilterFn,
-    onPaginationChange: paginationConfig.enabled ? setPaginationState : undefined,
+    globalFilterFn,
+    onPaginationChange: paginationConfig.enabled
+      ? setPaginationState
+      : undefined,
     enableMultiSort: true,
     state: {
       sorting,
@@ -286,100 +378,123 @@ export function DataTableFactory<T extends Record<string, any>>({
       globalFilter: debouncedGlobalFilter,
       ...(paginationConfig.enabled && { pagination: paginationState }),
     },
-  })
+  });
 
   // Create row toggle function that works with TanStack Table
   const createRowToggle = useCallback(
     (rowId: string) => {
       return () => {
         // Use TanStack Table's row toggle method to ensure callbacks are triggered
-        const row = table.getRowModel().rows.find((r) => r.id === rowId)
+        const row = table.getRowModel().rows.find((r) => r.id === rowId);
         if (row) {
-          row.toggleSelected()
+          row.toggleSelected();
         }
-      }
+      };
     },
-    [table],
-  )
+    [table]
+  );
 
   // Create edit handler function
   const createEditHandler = useCallback((rowId: string) => {
-    return () => setEditingRowId(rowId)
-  }, [])
+    return () => setEditingRowId(rowId);
+  }, []);
 
   const availableColumns = Object.entries(shape)
     .filter(([_, config]) => config)
-    .map(([key, config]) => ({ key, label: config!.label }))
+    .map(([key, config]) => ({ key, label: config!.label }));
 
   const clearSorting = () => {
-    setSorting([])
-  }
+    setSorting([]);
+  };
 
   const removeSortColumn = (columnId: string) => {
-    setSorting((prev) => prev.filter((sort) => sort.id !== columnId))
-  }
+    setSorting((prev) => prev.filter((sort) => sort.id !== columnId));
+  };
 
   return (
     <div className={cn("flex flex-col gap-4", className)}>
       {/* Controls */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <div className="relative">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground hidden md:block" />
-            <Input
-              placeholder="Search all columns..."
-              value={globalFilter ?? ""}
-              onChange={(event) => setGlobalFilter(event.target.value)}
-              className="md:pl-8 max-w-sm"
-            />
-          </div>
+          {searchable && (
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground hidden md:block" />
+              <Input
+                placeholder="Search all columns..."
+                value={globalFilter ?? ""}
+                onChange={(event) => setGlobalFilter(event.target.value)}
+                className="md:pl-8 max-w-sm"
+              />
+            </div>
+          )}
         </div>
-        <ColumnVisibilityControl
-          columns={availableColumns}
-          columnVisibility={columnVisibility}
-          onColumnVisibilityChange={setColumnVisibility}
-          columnOrder={columnOrder}
-          onColumnOrderChange={setColumnOrder}
-        />
+        {(hideable || reorderable) && (
+          <ColumnControls
+            columns={availableColumns}
+            columnVisibility={columnVisibility}
+            onColumnVisibilityChange={setColumnVisibility}
+            columnOrder={columnOrder}
+            onColumnOrderChange={setColumnOrder}
+            hideable={hideable}
+            reorderable={reorderable}
+          />
+        )}
       </div>
 
       {/* Sorting Status */}
-      {sorting.length > 0 ? (
-        <div className="flex items-center gap-2">
-          <div className="flex flex-wrap gap-1">
-            {sorting.map((sort, index) => {
-              const column = availableColumns.find((col) => col.key === sort.id)
-              return (
-                <Badge key={sort.id} variant="outline" className="text-xs flex items-center gap-1">
-                  {column?.label} {sort.desc ? "↓" : "↑"}
-                  {sorting.length > 1 && <span>({index + 1})</span>}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-auto p-0 ml-1"
-                    onClick={() => removeSortColumn(sort.id)}
+      {sortable &&
+        (sorting.length > 0 ? (
+          <div className="flex items-center gap-2">
+            <div className="flex flex-wrap gap-1">
+              {sorting.map((sort, index) => {
+                const column = availableColumns.find(
+                  (col) => col.key === sort.id
+                );
+                return (
+                  <Badge
+                    key={sort.id}
+                    variant="outline"
+                    className="text-xs flex items-center gap-1"
                   >
-                    <X className="h-3 w-3" />
-                  </Button>
-                </Badge>
-              )
-            })}
+                    {column?.label} {sort.desc ? "↓" : "↑"}
+                    {sorting.length > 1 && <span>({index + 1})</span>}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-auto p-0 ml-1"
+                      onClick={() => removeSortColumn(sort.id)}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </Badge>
+                );
+              })}
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearSorting}
+              className="h-8 px-2 text-xs"
+            >
+              Clear All
+            </Button>
           </div>
-          <Button variant="ghost" size="sm" onClick={clearSorting} className="h-8 px-2 text-xs">
-            Clear All
-          </Button>
-        </div>
-      ) : (
-        <div className="px-2 py-1.5 bg-muted/50 rounded-lg">
-          <p className="text-sm text-muted-foreground">
-            💡 <strong>Sorting tip:</strong> Click column headers to sort. Hold{" "}
-            <kbd className="px-1 py-0.5 bg-background rounded text-xs">Shift</kbd>,{" "}
-            <kbd className="px-1 py-0.5 bg-background rounded text-xs">Ctrl</kbd>, or{" "}
-            <kbd className="px-1 py-0.5 bg-background rounded text-xs">Cmd</kbd> while clicking to sort by multiple
-            columns.
-          </p>
-        </div>
-      )}
+        ) : (
+          <div className="px-2 py-1.5 bg-muted/50 rounded-lg flex items-center text-sm text-muted-foreground">
+            <Lightbulb className="w-4 h-4 inline-block mr-1" />
+            <p>
+              <strong>Sorting tip:</strong> Click column headers to sort. Hold{" "}
+              <kbd className="px-1 py-0.5 bg-background rounded text-xs">
+                Shift
+              </kbd>
+              or{" "}
+              <kbd className="px-1 py-0.5 bg-background rounded text-xs">
+                Ctrl
+              </kbd>
+              while clicking to sort by multiple columns.
+            </p>
+          </div>
+        ))}
 
       {/* Table */}
       <div className="rounded-md border">
@@ -391,12 +506,18 @@ export function DataTableFactory<T extends Record<string, any>>({
                   <TableHead
                     key={header.id}
                     className={cn(
-                      "p-2",
+                      "p-2 text-left",
                       header.id === "select" && "w-12 min-w-12 max-w-12",
-                      header.id === "actions" && "w-[68px] min-w-[68px] max-w-[68px]",
+                      header.id === "actions" &&
+                        "w-[68px] min-w-[68px] max-w-[68px]"
                     )}
                   >
-                    {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
                   </TableHead>
                 ))}
               </TableRow>
@@ -405,7 +526,7 @@ export function DataTableFactory<T extends Record<string, any>>({
           <TableBody>
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => {
-                const isEditing = editingRowId === row.id
+                const isEditing = editingRowId === row.id;
 
                 return isEditing ? (
                   <TableRow key={row.id}>
@@ -415,14 +536,14 @@ export function DataTableFactory<T extends Record<string, any>>({
                       columnOrder={columnOrder}
                       columnVisibility={columnVisibility}
                       onSave={(updatedRow) => {
-                        onSave?.(updatedRow)
-                        setEditingRowId(null)
+                        onRowSave?.(updatedRow);
+                        setEditingRowId(null);
                       }}
                       onCancel={() => setEditingRowId(null)}
                     />
                   </TableRow>
                 ) : (
-                  <OptimizedRow
+                  <DataTableRow
                     key={row.id}
                     row={row.original}
                     rowId={row.id}
@@ -433,14 +554,17 @@ export function DataTableFactory<T extends Record<string, any>>({
                     actions={actions}
                     editable={editable}
                     onToggleSelect={createRowToggle(row.id)}
-                    onSave={onSave}
+                    onRowSave={onRowSave}
                     onEdit={createEditHandler(row.id)}
                   />
-                )
+                );
               })
             ) : (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-24 text-center"
+                >
                   No results.
                 </TableCell>
               </TableRow>
@@ -450,14 +574,20 @@ export function DataTableFactory<T extends Record<string, any>>({
       </div>
 
       {/* Pagination */}
-      {paginationConfig.enabled && <DataTablePagination table={table} pageSizeOptions={allPageSizeOptions} />}
+      {paginationConfig.enabled && (
+        <DataTablePagination
+          table={table}
+          pageSizeOptions={allPageSizeOptions}
+        />
+      )}
 
       {/* Selection info */}
       {Object.keys(rowSelection).length > 0 && (
         <div className="flex-1 text-sm text-muted-foreground py-2">
-          {Object.keys(rowSelection).length} of {table.getFilteredRowModel().rows.length} row(s) selected.
+          {Object.keys(rowSelection).length} of{" "}
+          {table.getFilteredRowModel().rows.length} row(s) selected.
         </div>
       )}
     </div>
-  )
+  );
 }

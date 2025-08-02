@@ -33,10 +33,16 @@ export type DataTableProps<T> = {
   shape: DataTableShape<T>
   actions?: DataTableAction<T>[]
   editable?: boolean
-  onSave?: (row: T) => void
+  onRowSave?: (row: T) => void
   onSelectionChange?: (selectedRows: T[]) => void
   pagination?: DataTablePaginationConfig
   className?: string
+  // Global feature toggles - override individual column settings
+  filterable?: boolean // true by default - enables/disables all filtering
+  sortable?: boolean // true by default - enables/disables all sorting
+  searchable?: boolean // true by default - enables/disables global search
+  hideable?: boolean // true by default - enables/disables column hiding
+  reorderable?: boolean // true by default - enables/disables column reordering
 }
 
 export type ColumnVisibility = Record<string, boolean>
