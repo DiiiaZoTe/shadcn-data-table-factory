@@ -37,6 +37,7 @@ interface RowEditorProps<T> {
   onCancel: () => void;
   columnOrder: string[];
   columnVisibility: ColumnVisibility;
+  showSelection?: boolean;
 }
 
 export function RowEditor<T extends Record<string, any>>({
@@ -46,6 +47,7 @@ export function RowEditor<T extends Record<string, any>>({
   onCancel,
   columnOrder,
   columnVisibility,
+  showSelection = true,
 }: RowEditorProps<T>) {
   const [editedRow, setEditedRow] = useState<T>({ ...row });
 
@@ -193,12 +195,14 @@ export function RowEditor<T extends Record<string, any>>({
 
   return (
     <>
-      {/* Selection column - fixed width, match the normal rows */}
-      <TableCell className="p-2 w-12 min-w-12 max-w-12">
-        <div className="flex items-center justify-center w-8 min-w-8 max-w-8 mx-auto">
-          <Checkbox disabled className="opacity-50" />
-        </div>
-      </TableCell>
+      {/* Selection column - only render if showSelection is true */}
+      {showSelection && (
+        <TableCell className="p-2 w-12 min-w-12 max-w-12">
+          <div className="flex items-center justify-center w-8 min-w-8 max-w-8 mx-auto">
+            <Checkbox disabled className="opacity-50" />
+          </div>
+        </TableCell>
+      )}
 
       {/* Data columns - only render visible columns in correct order */}
       {visibleColumns.map((key) => {
@@ -248,6 +252,7 @@ interface DataTableRowProps<T> {
   onToggleSelect: () => void;
   onRowSave?: (row: T) => void;
   onEdit: () => void;
+  showSelection?: boolean;
 }
 
 export const DataTableRow = memo(
@@ -263,6 +268,7 @@ export const DataTableRow = memo(
     onToggleSelect,
     onRowSave,
     onEdit,
+    showSelection = true,
   }: DataTableRowProps<T>) {
     // Filter visible columns based on columnVisibility and columnOrder
     const visibleColumns = columnOrder.filter((key) => {
@@ -274,12 +280,17 @@ export const DataTableRow = memo(
 
     return (
       <TableRow data-state={isSelected ? "selected" : undefined}>
-        {/* Selection column - fixed width, always visible */}
-        <TableCell className="p-2 w-12 min-w-12 max-w-12">
-          <div className="flex items-center justify-center w-8 min-w-8 max-w-8 mx-auto">
-            <SelectionCell isSelected={isSelected} onToggle={onToggleSelect} />
-          </div>
-        </TableCell>
+        {/* Selection column - only render if showSelection is true */}
+        {showSelection && (
+          <TableCell className="p-2 w-12 min-w-12 max-w-12">
+            <div className="flex items-center justify-center w-8 min-w-8 max-w-8 mx-auto">
+              <SelectionCell
+                isSelected={isSelected}
+                onToggle={onToggleSelect}
+              />
+            </div>
+          </TableCell>
+        )}
 
         {/* Data columns - only render visible columns in correct order */}
         {visibleColumns.map((key) => {
@@ -331,6 +342,7 @@ export const DataTableRow = memo(
       prevProps.rowId === nextProps.rowId &&
       prevProps.editable === nextProps.editable &&
       prevProps.actions === nextProps.actions &&
+      prevProps.showSelection === nextProps.showSelection &&
       JSON.stringify(prevProps.columnOrder) ===
         JSON.stringify(nextProps.columnOrder) &&
       JSON.stringify(prevProps.columnVisibility) ===

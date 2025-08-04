@@ -103,13 +103,13 @@ export function ColumnControls<T>({
     const itemContent = (
       <div
         className={cn(
-          "flex items-center gap-2 py-1 px-2 rounded-md hover:bg-muted transition-colors",
+          "flex items-center gap-2 py-1 px-2 rounded-md hover:bg-accent transition-colors",
           reorderable && "group"
         )}
       >
         {reorderable && (
           <div className="cursor-grab active:cursor-grabbing">
-            <GripVertical className="h-4 w-4 text-muted-foreground" />
+            <GripVertical className="h-4 w-4 text-accent-foreground" />
           </div>
         )}
         {hideable && (
@@ -175,7 +175,7 @@ export function ColumnControls<T>({
               {...provided.draggableProps}
               {...provided.dragHandleProps}
               className={cn(
-                snapshot.isDragging && "bg-muted shadow-lg border border-border"
+                snapshot.isDragging && "bg-accent rounded-md"
               )}
               style={{
                 ...provided.draggableProps.style,

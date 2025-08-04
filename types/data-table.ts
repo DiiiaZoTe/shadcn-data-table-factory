@@ -20,6 +20,7 @@ export type DataTableAction<T> = {
   label: string
   onClick: (row: T) => void
   icon?: ReactNode
+  className?: string
 }
 
 export type DataTablePaginationConfig = {

@@ -93,6 +93,7 @@ export default function ExamplePage() {
   const [globalSearchable, setGlobalSearchable] = useState(true);
   const [globalHideable, setGlobalHideable] = useState(true);
   const [globalReorderable, setGlobalReorderable] = useState(true);
+  const [selectionEnabled, setSelectionEnabled] = useState(true);
 
   // Define the shape of the table
   const shape: DataTableShape<User> = {
@@ -178,6 +179,7 @@ export default function ExamplePage() {
           setData((prev) => prev.filter((u) => u.id !== user.id));
         }
       },
+      className: "focus:text-destructive focus:bg-destructive/10",
     },
   ];
 
@@ -203,7 +205,7 @@ export default function ExamplePage() {
         </p>
       </div>
 
-      {selectedRows.length > 0 && (
+      {selectionEnabled && selectedRows.length > 0 && (
         <div className="p-4 bg-blue-50 rounded-lg">
           <p className="text-sm font-medium">
             {selectedRows.length} user(s) selected. You can perform bulk actions
@@ -258,14 +260,22 @@ export default function ExamplePage() {
             />
             <Label htmlFor="reorderable">Column Reordering</Label>
           </div>
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="selection"
+              checked={selectionEnabled}
+              onCheckedChange={setSelectionEnabled}
+            />
+            <Label htmlFor="selection">Row Selection</Label>
+          </div>
         </div>
         <p className="text-xs text-gray-600 mt-2">
           Toggle these switches to see how global controls override individual
-          column settings. Table preferences (sorting, filters, column
+          column settings. When "Row Selection" is disabled, selection
+          checkboxes will be hidden. Table preferences (sorting, filters, column
           order/visibility) are automatically saved to localStorage.
         </p>
       </div>
-
 
       <DataTableFactory
         data={data}
@@ -274,7 +284,7 @@ export default function ExamplePage() {
         actions={actions}
         editable={true}
         onRowSave={handleRowSave}
-        onSelectionChange={handleSelectionChange}
+        onSelectionChange={selectionEnabled ? handleSelectionChange : undefined}
         persistStorage={true}
         sortable={globalSortable}
         filterable={globalFilterable}

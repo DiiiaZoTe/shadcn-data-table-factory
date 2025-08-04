@@ -23,7 +23,6 @@ import {
   Search,
   X,
   Lightbulb,
-  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -258,27 +257,29 @@ export function DataTableFactory<T extends Record<string, any>>({
   const columns = useMemo<ColumnDef<T>[]>(() => {
     const cols: ColumnDef<T>[] = [];
 
-    // Selection column - fixed width
-    cols.push({
-      id: "select",
-      header: ({ table }) => (
-        <div className="flex items-center justify-center w-8 min-w-8 max-w-8 mx-auto">
-          <Checkbox
-            checked={table.getIsAllPageRowsSelected()}
-            onCheckedChange={(value) =>
-              table.toggleAllPageRowsSelected(!!value)
-            }
-            aria-label="Select all"
-          />
-        </div>
-      ),
-      cell: () => null, // We handle this in OptimizedRow
-      enableSorting: false,
-      enableHiding: false,
-      size: 48, // 48px = w-12
-      minSize: 48,
-      maxSize: 48,
-    });
+    // Selection column - only add if onSelectionChange is provided
+    if (onSelectionChange) {
+      cols.push({
+        id: "select",
+        header: ({ table }) => (
+          <div className="flex items-center justify-center w-8 min-w-8 max-w-8 mx-auto">
+            <Checkbox
+              checked={table.getIsAllPageRowsSelected()}
+              onCheckedChange={(value) =>
+                table.toggleAllPageRowsSelected(!!value)
+              }
+              aria-label="Select all"
+            />
+          </div>
+        ),
+        cell: () => null, // We handle this in OptimizedRow
+        enableSorting: false,
+        enableHiding: false,
+        size: 48, // 48px = w-12
+        minSize: 48,
+        maxSize: 48,
+      });
+    }
 
     // Data columns - use columnOrder for proper ordering
     columnOrder.forEach((key) => {
@@ -405,6 +406,7 @@ export function DataTableFactory<T extends Record<string, any>>({
     columnFilterFn,
     sortable,
     filterable,
+    onSelectionChange,
   ]);
 
   const table = useReactTable({
@@ -638,6 +640,7 @@ export function DataTableFactory<T extends Record<string, any>>({
                         setEditingRowId(null);
                       }}
                       onCancel={() => setEditingRowId(null)}
+                      showSelection={!!onSelectionChange}
                     />
                   </TableRow>
                 ) : (
@@ -654,6 +657,7 @@ export function DataTableFactory<T extends Record<string, any>>({
                     onToggleSelect={createRowToggle(row.id)}
                     onRowSave={onRowSave}
                     onEdit={createEditHandler(row.id)}
+                    showSelection={!!onSelectionChange}
                   />
                 );
               })
@@ -679,8 +683,8 @@ export function DataTableFactory<T extends Record<string, any>>({
         />
       )}
 
-      {/* Selection info */}
-      {Object.keys(rowSelection).length > 0 && (
+      {/* Selection info - only show if selection is enabled */}
+      {onSelectionChange && Object.keys(rowSelection).length > 0 && (
         <div className="flex-1 text-sm text-muted-foreground py-2">
           {Object.keys(rowSelection).length} of{" "}
           {table.getFilteredRowModel().rows.length} row(s) selected.

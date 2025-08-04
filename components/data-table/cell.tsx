@@ -172,7 +172,11 @@ export const ActionsCell = memo(
             </DropdownMenuItem>
           )}
           {actions.map((action, index) => (
-            <DropdownMenuItem key={index} onClick={() => action.onClick(row)}>
+            <DropdownMenuItem
+              key={index}
+              onClick={() => action.onClick(row)}
+              className={action.className}
+            >
               {action.icon && <span className="mr-2">{action.icon}</span>}
               {action.label}
             </DropdownMenuItem>
