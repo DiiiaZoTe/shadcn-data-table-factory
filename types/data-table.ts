@@ -31,12 +31,15 @@ export type DataTablePaginationConfig = {
 export type DataTableProps<T> = {
   data: T[]
   shape: DataTableShape<T>
+  tableName: string // Required - used as unique identifier for localStorage keys
   actions?: DataTableAction<T>[]
   editable?: boolean
   onRowSave?: (row: T) => void
   onSelectionChange?: (selectedRows: T[]) => void
   pagination?: DataTablePaginationConfig
   className?: string
+  persistStorage?: boolean // false by default - enables localStorage persistence for table state
+  loadingFallback?: ReactNode // optional custom loading UI for table content area when persistStorage is true and component hasn't mounted
   // Global feature toggles - override individual column settings
   filterable?: boolean // true by default - enables/disables all filtering
   sortable?: boolean // true by default - enables/disables all sorting

@@ -6,6 +6,7 @@ import type { DataTableShape, DataTableAction } from "@/types/data-table";
 import { Eye, Trash2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // Example data type
 type User = {
@@ -194,7 +195,7 @@ export default function ExamplePage() {
   };
 
   return (
-    <div className="container mx-auto py-10 px-4">
+    <div className="container mx-auto py-10 px-4 flex flex-col gap-4 flex-1">
       <div className="mb-6">
         <h1 className="text-3xl font-bold">Data Table Factory Example</h1>
         <p className="text-muted-foreground">
@@ -203,7 +204,7 @@ export default function ExamplePage() {
       </div>
 
       {selectedRows.length > 0 && (
-        <div className="mb-4 p-4 bg-blue-50 rounded-lg">
+        <div className="p-4 bg-blue-50 rounded-lg">
           <p className="text-sm font-medium">
             {selectedRows.length} user(s) selected. You can perform bulk actions
             here.
@@ -212,7 +213,7 @@ export default function ExamplePage() {
       )}
 
       {/* Global Feature Controls */}
-      <div className="mb-6 p-4 bg-gray-50 rounded-lg border">
+      <div className="p-4 bg-gray-50 rounded-lg border">
         <h3 className="font-semibold mb-3 text-gray-800">
           Global Feature Controls
         </h3>
@@ -260,17 +261,21 @@ export default function ExamplePage() {
         </div>
         <p className="text-xs text-gray-600 mt-2">
           Toggle these switches to see how global controls override individual
-          column settings
+          column settings. Table preferences (sorting, filters, column
+          order/visibility) are automatically saved to localStorage.
         </p>
       </div>
+
 
       <DataTableFactory
         data={data}
         shape={shape}
+        tableName="users-example-table"
         actions={actions}
         editable={true}
         onRowSave={handleRowSave}
         onSelectionChange={handleSelectionChange}
+        persistStorage={true}
         sortable={globalSortable}
         filterable={globalFilterable}
         searchable={globalSearchable}
@@ -281,7 +286,8 @@ export default function ExamplePage() {
           defaultPageSize: 25,
           pageSizeOptions: [50, 100, 200],
         }}
-        className="w-full"
+        className="w-full flex-1"
+        loadingFallback={<Skeleton className="h-full w-full flex-1" />}
       />
     </div>
   );

@@ -22,7 +22,7 @@ export default function RootLayout({
         }
         `}</style>
       </head>
-      <body>{children}</body>
+      <body className="flex flex-col min-h-screen">{children}</body>
     </html>
   );
 }

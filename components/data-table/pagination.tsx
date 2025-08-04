@@ -19,9 +19,9 @@ export function DataTablePagination<T>({ table, pageSizeOptions }: DataTablePagi
   const endRow = Math.min(startRow + currentPageSize - 1, totalRows)
 
   return (
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-4 items-center md:flex-row md:items-center md:justify-between">
       {/* Row info and page size selector */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+      <div className="flex gap-2 flex-row items-center md:gap-4">
         <div className="text-sm text-muted-foreground">
           Showing {totalRows > 0 ? startRow : 0} to {totalRows > 0 ? endRow : 0} of {totalRows} row(s)
         </div>

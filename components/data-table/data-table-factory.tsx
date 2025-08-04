@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo, useCallback, useRef } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import { useLocalStorage } from "usehooks-ts";
 import {
   type ColumnDef,
   flexRender,
@@ -22,6 +23,7 @@ import {
   Search,
   X,
   Lightbulb,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -35,6 +37,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { DataTableProps, DataTableAction } from "@/types/data-table";
 import { ColumnFilter } from "./column-filters";
 import { ColumnControls } from "./column-controls";
@@ -49,12 +52,15 @@ const EMPTY_ACTIONS: DataTableAction<any>[] = [];
 export function DataTableFactory<T extends Record<string, any>>({
   data,
   shape,
+  tableName,
   actions = EMPTY_ACTIONS,
   editable = false,
   onRowSave,
   onSelectionChange,
   pagination = {},
   className,
+  persistStorage = false,
+  loadingFallback,
   filterable = true,
   sortable = true,
   searchable = true,
@@ -76,19 +82,78 @@ export function DataTableFactory<T extends Record<string, any>>({
     ])
   ).sort((a, b) => a - b);
 
-  const [sorting, setSorting] = useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
-  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
-  const [globalFilter, setGlobalFilter] = useState("");
-  const [columnOrder, setColumnOrder] = useState<string[]>(
-    Object.keys(shape).filter((key) => shape[key])
-  );
-  const [editingRowId, setEditingRowId] = useState<string | null>(null);
-  const [paginationState, setPaginationState] = useState<PaginationState>({
+  // Prevent hydration mismatches when using localStorage
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Compute initial values
+  const initialColumnOrder = Object.keys(shape).filter((key) => shape[key]);
+  const initialPaginationState: PaginationState = {
     pageIndex: 0,
     pageSize: paginationConfig.defaultPageSize,
-  });
+  };
+
+  // Always call all hooks (React hooks rule), then decide which values to use
+  const [sortingStorage, setSortingStorage] = useLocalStorage<SortingState>(
+    `${tableName}-sorting`,
+    []
+  );
+  const [sortingState, setSortingState] = useState<SortingState>([]);
+  const [sorting, setSorting] = persistStorage
+    ? [sortingStorage, setSortingStorage]
+    : [sortingState, setSortingState];
+
+  const [columnFiltersStorage, setColumnFiltersStorage] =
+    useLocalStorage<ColumnFiltersState>(`${tableName}-columnFilters`, []);
+  const [columnFiltersState, setColumnFiltersState] =
+    useState<ColumnFiltersState>([]);
+  const [columnFilters, setColumnFilters] = persistStorage
+    ? [columnFiltersStorage, setColumnFiltersStorage]
+    : [columnFiltersState, setColumnFiltersState];
+
+  const [columnVisibilityStorage, setColumnVisibilityStorage] =
+    useLocalStorage<VisibilityState>(`${tableName}-columnVisibility`, {});
+  const [columnVisibilityState, setColumnVisibilityState] =
+    useState<VisibilityState>({});
+  const [columnVisibility, setColumnVisibility] = persistStorage
+    ? [columnVisibilityStorage, setColumnVisibilityStorage]
+    : [columnVisibilityState, setColumnVisibilityState];
+
+  const [globalFilterStorage, setGlobalFilterStorage] = useLocalStorage<string>(
+    `${tableName}-globalFilter`,
+    ""
+  );
+  const [globalFilterState, setGlobalFilterState] = useState<string>("");
+  const [globalFilter, setGlobalFilter] = persistStorage
+    ? [globalFilterStorage, setGlobalFilterStorage]
+    : [globalFilterState, setGlobalFilterState];
+
+  const [columnOrderStorage, setColumnOrderStorage] = useLocalStorage<string[]>(
+    `${tableName}-columnOrder`,
+    initialColumnOrder
+  );
+  const [columnOrderState, setColumnOrderState] =
+    useState<string[]>(initialColumnOrder);
+  const [columnOrder, setColumnOrder] = persistStorage
+    ? [columnOrderStorage, setColumnOrderStorage]
+    : [columnOrderState, setColumnOrderState];
+
+  const [paginationStateStorage, setPaginationStateStorage] =
+    useLocalStorage<PaginationState>(
+      `${tableName}-paginationState`,
+      initialPaginationState
+    );
+  const [paginationStateState, setPaginationStateState] =
+    useState<PaginationState>(initialPaginationState);
+  const [paginationState, setPaginationState] = persistStorage
+    ? [paginationStateStorage, setPaginationStateStorage]
+    : [paginationStateState, setPaginationStateState];
+
+  // Non-persistent state (always use regular useState)
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [editingRowId, setEditingRowId] = useState<string | null>(null);
 
   // Use ref to store the callback to avoid dependency issues
   const onSelectionChangeRef = useRef(onSelectionChange);
@@ -411,6 +476,39 @@ export function DataTableFactory<T extends Record<string, any>>({
     setSorting((prev) => prev.filter((sort) => sort.id !== columnId));
   };
 
+  // Prevent hydration mismatch by not rendering until mounted (when using localStorage)
+  if (persistStorage && !isMounted) {
+    return (
+      <div className={cn("flex flex-col gap-4", className)}>
+        {/* Controls Skeleton */}
+        <div className="flex items-center justify-between gap-2">
+          {searchable && <Skeleton className="h-10 w-52" />}
+          {(hideable || reorderable) && (
+            <Skeleton className="h-10 w-10 md:w-32 ml-auto" />
+          )}
+        </div>
+
+        {/* Sorting Status Skeleton */}
+        {sortable && <Skeleton className="h-8 w-full" />}
+
+        {/* Table Skeleton */}
+        {loadingFallback ? (
+          loadingFallback
+        ) : (
+          <Skeleton className="h-full w-full flex-1 rounded-md" />
+        )}
+
+        {/* Pagination Skeleton */}
+        {paginationConfig.enabled && (
+          <div className="flex flex-col gap-4 items-center md:flex-row md:items-center md:justify-between">
+            <Skeleton className="h-8 w-[360px]" />
+            <Skeleton className="h-8 w-56" />
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className={cn("flex flex-col gap-4", className)}>
       {/* Controls */}
@@ -418,12 +516,12 @@ export function DataTableFactory<T extends Record<string, any>>({
         <div className="flex items-center gap-2">
           {searchable && (
             <div className="relative">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground hidden md:block" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search all columns..."
                 value={globalFilter ?? ""}
                 onChange={(event) => setGlobalFilter(event.target.value)}
-                className="md:pl-8 max-w-sm"
+                className="pl-9 max-w-sm text-sm"
               />
             </div>
           )}
@@ -498,7 +596,7 @@ export function DataTableFactory<T extends Record<string, any>>({
 
       {/* Table */}
       <div className="rounded-md border">
-        <Table>
+        <Table withBorders>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>

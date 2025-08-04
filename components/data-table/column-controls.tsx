@@ -202,7 +202,7 @@ export function ColumnControls<T>({
       <DropdownMenuTrigger asChild>
         <Button
           variant="outline"
-          className="size-10 md:size-auto bg-transparent"
+          className="size-10 md:size-auto md:h-10 bg-transparent"
         >
           <Settings2 className="h-4 w-4" />
           <span className="ml-2 hidden md:block">Columns</span>
