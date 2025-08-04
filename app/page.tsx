@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { DataTableFactory } from "@/components/data-table/data-table-factory";
 import type { DataTableShape, DataTableAction } from "@/types/data-table";
+import { TIMEZONES } from "@/types/data-table";
 import { Eye, Trash2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -95,6 +96,7 @@ export default function ExamplePage() {
   const [globalReorderable, setGlobalReorderable] = useState(true);
   const [selectionEnabled, setSelectionEnabled] = useState(true);
   const [withBorders, setWithBorders] = useState(true);
+  const [exportable, setExportable] = useState(true);
 
   // Define the shape of the table
   const shape: DataTableShape<User> = {
@@ -277,6 +279,14 @@ export default function ExamplePage() {
             />
             <Label htmlFor="withBorders">With Borders</Label>
           </div>
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="exportable"
+              checked={exportable}
+              onCheckedChange={setExportable}
+            />
+            <Label htmlFor="exportable">Export</Label>
+          </div>
         </div>
         <p className="text-xs text-gray-600 mt-2">
           Toggle these switches to see how global controls override individual
@@ -300,6 +310,8 @@ export default function ExamplePage() {
         searchable={globalSearchable}
         hideable={globalHideable}
         reorderable={globalReorderable}
+        exportable={exportable}
+        timezone={TIMEZONES.EASTERN}
         pagination={{
           enabled: true,
           defaultPageSize: 25,

@@ -23,6 +23,7 @@ import {
   Search,
   X,
   Lightbulb,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -42,6 +43,8 @@ import { ColumnFilter } from "./column-filters";
 import { ColumnControls } from "./column-controls";
 import { DataTablePagination } from "./pagination";
 import { DataTableRow, RowEditor } from "./row";
+import { ExportButton, exportToExcel, getVisibleColumns } from "./export";
+import { getTimezoneAbbreviation } from "./utils";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { cn } from "@/lib/utils";
 
@@ -60,12 +63,14 @@ export function DataTableFactory<T extends Record<string, any>>({
   className,
   persistStorage = false,
   loadingFallback,
-  filterable = true,
-  sortable = true,
-  searchable = true,
-  hideable = true,
-  reorderable = true,
+  filterable = false,
+  sortable = false,
+  searchable = false,
+  hideable = false,
+  reorderable = false,
   withBorders = false,
+  exportable = false,
+  timezone,
 }: DataTableProps<T>) {
   // Provide default onRowSave function if none is provided
   const handleRowSave =
@@ -307,6 +312,17 @@ export function DataTableFactory<T extends Record<string, any>>({
             filterable &&
             Object.values(shape).some((config) => config.filterable !== false);
 
+          const Label = () => (
+            <span className="mr-2">
+              {config.label}
+              {config.type === "date" && timezone && (
+                <span className="ml-1">
+                  ({getTimezoneAbbreviation(timezone)})
+                </span>
+              )}
+            </span>
+          );
+
           return (
             <div className="flex flex-col w-full">
               <div className="flex items-center gap-2 min-h-[20px] w-full">
@@ -329,7 +345,7 @@ export function DataTableFactory<T extends Record<string, any>>({
                     }}
                     className="h-auto p-0 font-medium text-foreground hover:bg-transparent w-full justify-between"
                   >
-                    <span className="mr-2">{config.label}</span>
+                    <Label />
                     <div className="flex items-center gap-1">
                       {sortDirection === null ? (
                         <ArrowUpDown className="h-4 w-4" />
@@ -349,9 +365,7 @@ export function DataTableFactory<T extends Record<string, any>>({
                     </div>
                   </Button>
                 ) : (
-                  <span className="font-medium text-foreground">
-                    {config.label}
-                  </span>
+                  <Label />
                 )}
               </div>
               {/* Add spacing for alignment if any column has filters */}
@@ -479,6 +493,67 @@ export function DataTableFactory<T extends Record<string, any>>({
     .filter(([_, config]) => config)
     .map(([key, config]) => ({ key, label: config!.label }));
 
+  // Export function with correct data extraction
+  const handleExport = () => {
+    // Get visible columns for export (only compute when needed)
+    const visibleColumns = getVisibleColumns(
+      shape,
+      columnOrder,
+      columnVisibility
+    );
+    // IMPORTANT: Get the data in the correct order - filtered, then sorted
+    // This gives us the exact data that the user sees in the table
+    const filteredAndSortedRows = table.getSortedRowModel().rows;
+    const processedData = filteredAndSortedRows.map((row) => row.original);
+
+    // Get selected rows - these are the ACTUAL selected rows from the processed data
+    let selectedRows: T[] | undefined;
+
+    if (Object.keys(rowSelection).some((key) => rowSelection[key])) {
+      // TanStack Table's selection indices refer to the filtered/sorted rows, not original data
+      // So we need to map the selection indices to the actual filtered/sorted data
+      selectedRows = [];
+
+      // Get selected row model which contains the correct selected rows
+      const selectedRowModel = table.getSelectedRowModel();
+      selectedRows = selectedRowModel.rows.map((row) => row.original);
+
+      console.log("Selection Debug:", {
+        rowSelectionState: rowSelection,
+        selectedRowModelCount: selectedRowModel.rows.length,
+        selectedRowsData: selectedRows.slice(0, 3), // First 3 for debugging
+      });
+    }
+
+    console.log("Export Debug Info:", {
+      originalDataLength: data.length,
+      filteredSortedLength: processedData.length,
+      selectedRowsLength: selectedRows?.length || 0,
+      hasFilters: table.getState().columnFilters.length > 0,
+      hasSorting: table.getState().sorting.length > 0,
+      hasGlobalFilter: !!table.getState().globalFilter,
+      visibleColumnsCount: visibleColumns.length,
+      // Show first few rows being exported to verify correct data
+      firstProcessedRows: processedData.slice(0, 2).map((row) => {
+        const sample: any = {};
+        columnOrder.slice(0, 3).forEach((key) => {
+          sample[key] = row[key as keyof T];
+        });
+        return sample;
+      }),
+    });
+
+    exportToExcel({
+      data: processedData, // This is the filtered and sorted data
+      shape,
+      visibleColumns,
+      columnOrder,
+      tableName,
+      selectedRows, // This contains the actual selected rows from processed data
+      timezone,
+    });
+  };
+
   const clearSorting = () => {
     setSorting([]);
   };
@@ -494,9 +569,12 @@ export function DataTableFactory<T extends Record<string, any>>({
         {/* Controls Skeleton */}
         <div className="flex items-center justify-between gap-2">
           {searchable && <Skeleton className="h-10 w-52" />}
-          {(hideable || reorderable) && (
-            <Skeleton className="h-10 w-10 md:w-32 ml-auto" />
-          )}
+          <div className="flex items-center gap-2">
+            {exportable && <Skeleton className="h-10 w-10 md:w-28" />}
+            {(hideable || reorderable) && (
+              <Skeleton className="h-10 w-10 md:w-32" />
+            )}
+          </div>
         </div>
 
         {/* Sorting Status Skeleton */}
@@ -537,17 +615,20 @@ export function DataTableFactory<T extends Record<string, any>>({
             </div>
           )}
         </div>
-        {(hideable || reorderable) && (
-          <ColumnControls
-            columns={availableColumns}
-            columnVisibility={columnVisibility}
-            onColumnVisibilityChange={setColumnVisibility}
-            columnOrder={columnOrder}
-            onColumnOrderChange={setColumnOrder}
-            hideable={hideable}
-            reorderable={reorderable}
-          />
-        )}
+        <div className="flex items-center gap-2">
+          {exportable && <ExportButton onClick={handleExport} />}
+          {(hideable || reorderable) && (
+            <ColumnControls
+              columns={availableColumns}
+              columnVisibility={columnVisibility}
+              onColumnVisibilityChange={setColumnVisibility}
+              columnOrder={columnOrder}
+              onColumnOrderChange={setColumnOrder}
+              hideable={hideable}
+              reorderable={reorderable}
+            />
+          )}
+        </div>
       </div>
 
       {/* Sorting Status */}
@@ -565,7 +646,12 @@ export function DataTableFactory<T extends Record<string, any>>({
                     variant="outline"
                     className="text-xs flex items-center gap-1"
                   >
-                    {column?.label} {sort.desc ? <ArrowUp className="h-4 w-4"/> : <ArrowDown className="h-4 w-4"/>}
+                    {column?.label}{" "}
+                    {sort.desc ? (
+                      <ArrowUp className="h-4 w-4" />
+                    ) : (
+                      <ArrowDown className="h-4 w-4" />
+                    )}
                     {sorting.length > 1 && <span>({index + 1})</span>}
                     <Button
                       variant="ghost"
@@ -650,6 +736,7 @@ export function DataTableFactory<T extends Record<string, any>>({
                       }}
                       onCancel={() => setEditingRowId(null)}
                       showSelection={!!onSelectionChange}
+                      timezone={timezone}
                     />
                   </TableRow>
                 ) : (
@@ -667,6 +754,7 @@ export function DataTableFactory<T extends Record<string, any>>({
                     onRowSave={handleRowSave}
                     onEdit={createEditHandler(row.id)}
                     showSelection={!!onSelectionChange}
+                    timezone={timezone}
                   />
                 );
               })

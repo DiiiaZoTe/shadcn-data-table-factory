@@ -59,7 +59,8 @@ const renderCellValueWithEmptyCheck = (
   value: any,
   type: DataTableFieldType,
   placeholder?: string,
-  customRender?: (value: any) => React.ReactNode
+  customRender?: (value: any) => React.ReactNode,
+  timezone?: string
 ): React.ReactNode => {
   // Always check for empty values first, regardless of custom render
   if (isValueEmpty(value, type)) {
@@ -72,20 +73,21 @@ const renderCellValueWithEmptyCheck = (
   }
 
   // Otherwise use default rendering for non-empty values
-  return renderCellValueDefault(value, type);
+  return renderCellValueDefault(value, type, timezone);
 };
 
 // Default rendering logic for non-empty values only
 const renderCellValueDefault = (
   value: any,
-  type: DataTableFieldType
+  type: DataTableFieldType,
+  timezone?: string
 ): React.ReactNode => {
   switch (type) {
     case "boolean":
       return <Switch checked={value ?? false} disabled />;
 
     case "date":
-      return formatDateTime(value);
+      return formatDateTime(value, timezone);
 
     case "number":
       return <span>{value}</span>;
@@ -433,6 +435,7 @@ interface HoverableCellProps<T> {
   placeholder?: string;
   editable?: boolean;
   render?: (value: any) => React.ReactNode;
+  timezone?: string;
 }
 
 function HoverableCell<T>({
@@ -443,6 +446,7 @@ function HoverableCell<T>({
   placeholder,
   editable = true,
   render,
+  timezone,
 }: HoverableCellProps<T>) {
   const [isEditing, setIsEditing] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -492,7 +496,13 @@ function HoverableCell<T>({
     >
       <div className="min-w-0 pr-8">
         {/* Always check empty first, then use custom render or default */}
-        {renderCellValueWithEmptyCheck(value, type, placeholder, render)}
+        {renderCellValueWithEmptyCheck(
+          value,
+          type,
+          placeholder,
+          render,
+          timezone
+        )}
       </div>
       {editable && isHovered && (
         <Button
@@ -524,6 +534,7 @@ interface DataTableCellProps<T> {
   render?: (value: any) => React.ReactNode;
   onSave?: (value: any) => void;
   isEditing?: boolean;
+  timezone?: string;
 }
 
 // Memoized cell component
@@ -537,6 +548,7 @@ export const DataTableCell = memo(
     render,
     onSave,
     isEditing = false,
+    timezone,
   }: DataTableCellProps<T>) {
     // If row is being edited, don't render anything (handled by RowEditor)
     if (isEditing) {
@@ -547,7 +559,15 @@ export const DataTableCell = memo(
     if (!editable) {
       // Always check empty first, then use custom render or default
       return (
-        <>{renderCellValueWithEmptyCheck(value, type, placeholder, render)}</>
+        <>
+          {renderCellValueWithEmptyCheck(
+            value,
+            type,
+            placeholder,
+            render,
+            timezone
+          )}
+        </>
       );
     }
 
@@ -561,6 +581,7 @@ export const DataTableCell = memo(
         editable={editable}
         render={render}
         onSave={onSave || (() => {})}
+        timezone={timezone}
       />
     );
   },
@@ -571,6 +592,7 @@ export const DataTableCell = memo(
       prevProps.type === nextProps.type &&
       prevProps.editable === nextProps.editable &&
       prevProps.isEditing === nextProps.isEditing &&
+      prevProps.timezone === nextProps.timezone &&
       JSON.stringify(prevProps.options) === JSON.stringify(nextProps.options)
     );
   }

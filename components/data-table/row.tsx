@@ -38,6 +38,7 @@ interface RowEditorProps<T> {
   columnOrder: string[];
   columnVisibility: ColumnVisibility;
   showSelection?: boolean;
+  timezone?: string;
 }
 
 export function RowEditor<T extends Record<string, any>>({
@@ -48,6 +49,7 @@ export function RowEditor<T extends Record<string, any>>({
   columnOrder,
   columnVisibility,
   showSelection = true,
+  timezone,
 }: RowEditorProps<T>) {
   const [editedRow, setEditedRow] = useState<T>({ ...row });
 
@@ -89,7 +91,7 @@ export function RowEditor<T extends Record<string, any>>({
           return <Switch checked={value ?? false} disabled />;
         case "date":
           return value ? (
-            formatDateTime(value)
+            formatDateTime(value, timezone)
           ) : (
             <span className="text-muted-foreground">
               {config.placeholder || ""}
@@ -253,6 +255,7 @@ interface DataTableRowProps<T> {
   onRowSave: (row: T) => void;
   onEdit: () => void;
   showSelection?: boolean;
+  timezone?: string;
 }
 
 export const DataTableRow = memo(
@@ -269,6 +272,7 @@ export const DataTableRow = memo(
     onRowSave,
     onEdit,
     showSelection = true,
+    timezone,
   }: DataTableRowProps<T>) {
     // Filter visible columns based on columnVisibility and columnOrder
     const visibleColumns = columnOrder.filter((key) => {
@@ -313,6 +317,7 @@ export const DataTableRow = memo(
                   onRowSave(updatedRow);
                 }}
                 isEditing={false}
+                timezone={timezone}
               />
             </TableCell>
           );
@@ -343,6 +348,7 @@ export const DataTableRow = memo(
       prevProps.editable === nextProps.editable &&
       prevProps.actions === nextProps.actions &&
       prevProps.showSelection === nextProps.showSelection &&
+      prevProps.timezone === nextProps.timezone &&
       JSON.stringify(prevProps.columnOrder) ===
         JSON.stringify(nextProps.columnOrder) &&
       JSON.stringify(prevProps.columnVisibility) ===
