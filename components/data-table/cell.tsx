@@ -97,7 +97,7 @@ const renderCellValueDefault = (
       return (
         <div className="flex flex-wrap gap-1">
           {value.map((item: string) => (
-            <Badge key={item} variant="secondary">
+            <Badge key={item} variant="outline">
               {item}
             </Badge>
           ))}

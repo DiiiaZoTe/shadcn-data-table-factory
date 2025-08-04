@@ -65,6 +65,7 @@ export function DataTableFactory<T extends Record<string, any>>({
   searchable = true,
   hideable = true,
   reorderable = true,
+  withBorders = false,
 }: DataTableProps<T>) {
   // Provide default onRowSave function if none is provided
   const handleRowSave =
@@ -307,8 +308,8 @@ export function DataTableFactory<T extends Record<string, any>>({
             Object.values(shape).some((config) => config.filterable !== false);
 
           return (
-            <div className="flex flex-col">
-              <div className="flex items-center gap-2 min-h-[20px]">
+            <div className="flex flex-col w-full">
+              <div className="flex items-center gap-2 min-h-[20px] w-full">
                 {canSort ? (
                   <Button
                     variant="ghost"
@@ -326,12 +327,12 @@ export function DataTableFactory<T extends Record<string, any>>({
                         );
                       }
                     }}
-                    className="h-auto p-0 font-medium hover:bg-transparent"
+                    className="h-auto p-0 font-medium text-foreground hover:bg-transparent w-full justify-between"
                   >
                     <span className="mr-2">{config.label}</span>
                     <div className="flex items-center gap-1">
                       {sortDirection === null ? (
-                        <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+                        <ArrowUpDown className="h-4 w-4" />
                       ) : sortDirection ? (
                         <ArrowDown className="h-4 w-4" />
                       ) : (
@@ -348,7 +349,9 @@ export function DataTableFactory<T extends Record<string, any>>({
                     </div>
                   </Button>
                 ) : (
-                  <span className="font-medium">{config.label}</span>
+                  <span className="font-medium text-foreground">
+                    {config.label}
+                  </span>
                 )}
               </div>
               {/* Add spacing for alignment if any column has filters */}
@@ -385,8 +388,8 @@ export function DataTableFactory<T extends Record<string, any>>({
 
           return (
             <div className="flex flex-col">
-              <div className="flex items-center gap-2 min-h-[20px]">
-                <span className="font-medium">Actions</span>
+              <div className="flex items-center gap-2 min-h-[20px] font-medium text-foreground">
+                Actions
               </div>
               {/* Add spacing only if other columns have filters for alignment */}
               {anyColumnHasFilter && <div className="mt-2 h-8" />}
@@ -562,12 +565,12 @@ export function DataTableFactory<T extends Record<string, any>>({
                     variant="outline"
                     className="text-xs flex items-center gap-1"
                   >
-                    {column?.label} {sort.desc ? "↓" : "↑"}
+                    {column?.label} {sort.desc ? <ArrowUp className="h-4 w-4"/> : <ArrowDown className="h-4 w-4"/>}
                     {sorting.length > 1 && <span>({index + 1})</span>}
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-auto p-0 ml-1"
+                      className="h-auto p-0 hover:bg-transparent hover:text-destructive"
                       onClick={() => removeSortColumn(sort.id)}
                     >
                       <X className="h-3 w-3" />
@@ -604,7 +607,7 @@ export function DataTableFactory<T extends Record<string, any>>({
 
       {/* Table */}
       <div className="rounded-md border">
-        <Table withBorders>
+        <Table withBorders={withBorders}>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>

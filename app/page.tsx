@@ -94,6 +94,7 @@ export default function ExamplePage() {
   const [globalHideable, setGlobalHideable] = useState(true);
   const [globalReorderable, setGlobalReorderable] = useState(true);
   const [selectionEnabled, setSelectionEnabled] = useState(true);
+  const [withBorders, setWithBorders] = useState(true);
 
   // Define the shape of the table
   const shape: DataTableShape<User> = {
@@ -268,6 +269,14 @@ export default function ExamplePage() {
             />
             <Label htmlFor="selection">Row Selection</Label>
           </div>
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="withBorders"
+              checked={withBorders}
+              onCheckedChange={setWithBorders}
+            />
+            <Label htmlFor="withBorders">With Borders</Label>
+          </div>
         </div>
         <p className="text-xs text-gray-600 mt-2">
           Toggle these switches to see how global controls override individual
@@ -298,6 +307,7 @@ export default function ExamplePage() {
         }}
         className="w-full flex-1"
         loadingFallback={<Skeleton className="h-full w-full flex-1" />}
+        withBorders={withBorders}
       />
     </div>
   );
