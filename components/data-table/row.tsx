@@ -250,7 +250,7 @@ interface DataTableRowProps<T> {
   actions: DataTableAction<T>[];
   editable: boolean;
   onToggleSelect: () => void;
-  onRowSave?: (row: T) => void;
+  onRowSave: (row: T) => void;
   onEdit: () => void;
   showSelection?: boolean;
 }
@@ -310,7 +310,7 @@ export const DataTableRow = memo(
                 }
                 onSave={(newValue) => {
                   const updatedRow = { ...row, [key]: newValue };
-                  onRowSave?.(updatedRow);
+                  onRowSave(updatedRow);
                 }}
                 isEditing={false}
               />

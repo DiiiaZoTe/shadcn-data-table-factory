@@ -66,6 +66,12 @@ export function DataTableFactory<T extends Record<string, any>>({
   hideable = true,
   reorderable = true,
 }: DataTableProps<T>) {
+  // Provide default onRowSave function if none is provided
+  const handleRowSave =
+    onRowSave ||
+    ((row: T) => {
+      console.log("Row saved:", row);
+    });
   // Pagination configuration with defaults
   const paginationConfig = {
     enabled: pagination.enabled ?? true,
@@ -636,7 +642,7 @@ export function DataTableFactory<T extends Record<string, any>>({
                       columnOrder={columnOrder}
                       columnVisibility={columnVisibility}
                       onSave={(updatedRow) => {
-                        onRowSave?.(updatedRow);
+                        handleRowSave(updatedRow);
                         setEditingRowId(null);
                       }}
                       onCancel={() => setEditingRowId(null)}
@@ -655,7 +661,7 @@ export function DataTableFactory<T extends Record<string, any>>({
                     actions={actions}
                     editable={editable}
                     onToggleSelect={createRowToggle(row.id)}
-                    onRowSave={onRowSave}
+                    onRowSave={handleRowSave}
                     onEdit={createEditHandler(row.id)}
                     showSelection={!!onSelectionChange}
                   />
