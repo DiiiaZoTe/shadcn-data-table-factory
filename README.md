@@ -201,9 +201,9 @@ const users = [
 // Use the appropriate field name:
 <DataTableFactory 
   data={users} 
-  rowId="id"        // For the first dataset
+  rowId="id"        // For the first dataset shape
   // or
-  rowId="userId"    // For the second dataset
+  rowId="userId"    // For the second dataset shape
 />
 ```
 
@@ -265,7 +265,7 @@ import { TIMEZONES } from '@/types/data-table';
   shape={shape}
   exportable={true}  // Enable export button
   timezone={TIMEZONES.EASTERN}  // Dates exported in ET
-  tableName="users-export"  // Used in filename
+  tableName="users-export"  // Used in filename and persistent local storage
 />
 
 // Users click export button to download:
