@@ -38,7 +38,6 @@ You can extract the needed table factory from `app/components/data-table`.
 ## 🛠️ Tech Stack
 
 ### Core Dependencies
-- **Next.js 14** - React framework with App Router
 - **React 18** - Modern React with hooks and concurrent features
 - **TypeScript** - Type-safe development
 - **Tailwind CSS** - Utility-first CSS framework
