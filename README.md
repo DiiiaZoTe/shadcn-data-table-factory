@@ -1,6 +1,8 @@
 # Data Table Factory
 
-A comprehensive, feature-rich data table component built with React, TypeScript, and shadcn/ui. This repository showcases a powerful data table factory that provides advanced functionality for displaying, editing, filtering, sorting, and exporting tabular data.
+A comprehensive, feature-rich **client-side** data table component built with React, TypeScript, and shadcn/ui. This repository showcases a powerful data table factory that provides advanced functionality for displaying, editing, filtering, sorting, and exporting tabular data.
+
+You can extract the needed table factory from `app/components/data-table`.
 
 ## 🚀 Features
 
@@ -48,6 +50,7 @@ A comprehensive, feature-rich data table component built with React, TypeScript,
 - **Radix UI** - Unstyled, accessible UI primitives
 - **Lucide React** - Beautiful icon library
 - **Sonner** - Toast notifications
+- **Custom** - Modified Shadcn/ui table component and new multi-select.tsx 
 
 ### Data Processing & Export
 - **xlsx** - Excel file generation and processing
