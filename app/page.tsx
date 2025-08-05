@@ -87,7 +87,7 @@ const generateUsers = (count: number): User[] => {
 export default function ExamplePage() {
   const [data, setData] = useState<User[]>(generateUsers(150)); // Generate 150 users for pagination testing
   const [selectedRows, setSelectedRows] = useState<User[]>([]);
-
+  
   // Global feature toggles for demonstration
   const [globalSortable, setGlobalSortable] = useState(true);
   const [globalFilterable, setGlobalFilterable] = useState(true);
@@ -103,47 +103,47 @@ export default function ExamplePage() {
     name: {
       label: "Full Name",
       type: "text",
-      editable: true,
-      sortable: true,
-      filterable: true,
-      searchable: true,
+      // editable: true,
+      // sortable: true,
+      // filterable: true,
+      // searchable: true,
     },
     email: {
       label: "Email Address",
       type: "text",
-      editable: false,
-      sortable: true,
-      filterable: true,
-      searchable: true,
+      // editable: false,
+      // sortable: true,
+      // filterable: true,
+      // searchable: true,
     },
     age: {
       label: "Age",
       type: "number",
-      editable: true,
-      sortable: true,
-      filterable: true,
+      // editable: true,
+      // sortable: true,
+      // filterable: true,
     },
     isActive: {
       label: "Active Status",
       type: "boolean",
-      editable: true,
-      sortable: true,
-      filterable: true,
+      // editable: true,
+      // sortable: true,
+      // filterable: true,
     },
     role: {
       label: "Role",
       type: "select",
       options: ["admin", "user", "moderator"],
-      editable: true,
-      sortable: true,
-      filterable: false,
+      // editable: true,
+      // sortable: true,
+      // filterable: false,
     },
     joinDate: {
       label: "Join Date",
       type: "date",
-      editable: true,
-      sortable: true,
-      filterable: true,
+      // editable: true,
+      // sortable: true,
+      // filterable: true,
     },
     skills: {
       label: "Skills",
@@ -158,9 +158,9 @@ export default function ExamplePage() {
         "Node.js",
         "GraphQL",
       ],
-      editable: true,
-      sortable: false,
-      filterable: false,
+      // editable: true,
+      // sortable: false,
+      // filterable: false,
       placeholder: "No skills",
     },
   };
@@ -300,6 +300,7 @@ export default function ExamplePage() {
         data={data}
         shape={shape}
         tableName="users-example-table"
+        rowId="id"
         actions={actions}
         editable={true}
         onRowSave={handleRowSave}

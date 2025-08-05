@@ -133,6 +133,8 @@ export type DataTablePaginationConfig = {
 export type DataTableProps<T> = {
   /** data to be displayed in the table */
   data: T[]
+  /** unique identifier for each row, if you do not have any, modify the data to add a unique id field */
+  rowId: keyof T
   /** shape of the table - defines the columns and their properties */
   shape: DataTableShape<T>
   /** unique identifier for localStorage keys */

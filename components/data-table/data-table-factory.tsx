@@ -52,6 +52,7 @@ const EMPTY_ACTIONS: DataTableAction<any>[] = [];
 
 export function DataTableFactory<T extends Record<string, any>>({
   data,
+  rowId,
   shape,
   tableName,
   actions = EMPTY_ACTIONS,
@@ -165,10 +166,6 @@ export function DataTableFactory<T extends Record<string, any>>({
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
 
-  // Use ref to store the callback to avoid dependency issues
-  const onSelectionChangeRef = useRef(onSelectionChange);
-  onSelectionChangeRef.current = onSelectionChange;
-
   // Debounce global filter for better performance
   const debouncedGlobalFilter = useDebouncedValue(globalFilter, 300);
 
@@ -228,37 +225,12 @@ export function DataTableFactory<T extends Record<string, any>>({
     [shape, searchable]
   );
 
-  // Function to calculate and call onSelectionChange
+  // Function to set the row selection given by the user
   const handleSelectionChange = useCallback(
-    (newSelection: RowSelectionState, tableInstance: any) => {
-      if (onSelectionChangeRef.current) {
-        const selectedRowIndices = Object.keys(newSelection).filter(
-          (key) => newSelection[key]
-        );
-        const selectedRows: T[] = [];
-
-        // Get the current visible rows from the table
-        const currentRows = tableInstance.getRowModel().rows;
-
-        selectedRowIndices.forEach((index) => {
-          const numIndex = Number.parseInt(index);
-          if (paginationConfig.enabled) {
-            // For paginated tables, use the current page rows
-            const row = currentRows[numIndex];
-            if (row?.original) {
-              selectedRows.push(row.original);
-            }
-          } else {
-            // For non-paginated tables, use the filtered rows
-            const filteredRows = tableInstance.getFilteredRowModel().rows;
-            const row = filteredRows[numIndex];
-            if (row?.original) {
-              selectedRows.push(row.original);
-            }
-          }
-        });
-
-        onSelectionChangeRef.current(selectedRows);
+    (newSelection: RowSelectionState) => {
+      if (onSelectionChange) {
+        const selectedRows = data.filter((row) => row[rowId] in newSelection);
+        onSelectionChange(selectedRows);
       }
     },
     [paginationConfig.enabled]
@@ -431,8 +403,10 @@ export function DataTableFactory<T extends Record<string, any>>({
     onSelectionChange,
   ]);
 
+  // init the main tanstack table hook instance
   const table = useReactTable({
     data,
+    getRowId: (row) => row[rowId],
     columns,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
@@ -443,16 +417,7 @@ export function DataTableFactory<T extends Record<string, any>>({
       ? getPaginationRowModel()
       : undefined,
     onColumnVisibilityChange: setColumnVisibility,
-    onRowSelectionChange: (updater) => {
-      const newSelection =
-        typeof updater === "function" ? updater(rowSelection) : updater;
-      setRowSelection(newSelection);
-
-      // Call the selection change handler immediately
-      setTimeout(() => {
-        handleSelectionChange(newSelection, table);
-      }, 0);
-    },
+    onRowSelectionChange: setRowSelection,
     onGlobalFilterChange: setGlobalFilter,
     globalFilterFn,
     onPaginationChange: paginationConfig.enabled
@@ -468,6 +433,31 @@ export function DataTableFactory<T extends Record<string, any>>({
       ...(paginationConfig.enabled && { pagination: paginationState }),
     },
   });
+
+  // Get the visible row ids when filter/sort/pagination updates
+  // and set the row selection state to prune the rows that are not visible
+  const visibleRowIds = useMemo(() => {
+    const visibleRowIds = new Set(table.getRowModel().rows.map((r) => r.id));
+    setRowSelection((prev) => {
+      const next: Record<string, boolean> = {};
+      let changed = false;
+
+      for (const key in prev) {
+        if (visibleRowIds.has(key)) {
+          next[key] = true;
+        } else {
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+    return visibleRowIds;
+  }, [table.getRowModel().rows]);
+
+  // Call the onSelectionChange handler when the row selection state changes
+  useEffect(() => {
+    handleSelectionChange(rowSelection);
+  }, [rowSelection]);
 
   // Create row toggle function that works with TanStack Table
   const createRowToggle = useCallback(
@@ -723,21 +713,20 @@ export function DataTableFactory<T extends Record<string, any>>({
                 const isEditing = editingRowId === row.id;
 
                 return isEditing ? (
-                  <TableRow key={row.id}>
-                    <RowEditor
-                      row={row.original}
-                      shape={shape}
-                      columnOrder={columnOrder}
-                      columnVisibility={columnVisibility}
-                      onSave={(updatedRow) => {
-                        handleRowSave(updatedRow);
-                        setEditingRowId(null);
-                      }}
-                      onCancel={() => setEditingRowId(null)}
-                      showSelection={!!onSelectionChange}
-                      timezone={timezone}
-                    />
-                  </TableRow>
+                  <RowEditor
+                    key={row.id}
+                    row={row.original}
+                    shape={shape}
+                    columnOrder={columnOrder}
+                    columnVisibility={columnVisibility}
+                    onSave={(updatedRow) => {
+                      handleRowSave(updatedRow);
+                      setEditingRowId(null);
+                    }}
+                    onCancel={() => setEditingRowId(null)}
+                    showSelection={!!onSelectionChange}
+                    timezone={timezone}
+                  />
                 ) : (
                   <DataTableRow
                     key={row.id}

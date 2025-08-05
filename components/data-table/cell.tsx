@@ -25,6 +25,38 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { formatDateTime, hasValueChanged } from "./utils";
+import { TableCell } from "@/components/ui/table";
+import { Save, X } from "lucide-react";
+
+// ===================================================================
+// CELL COMPONENTS ARCHITECTURE OVERVIEW
+// ===================================================================
+//
+// DataTableCell (Main data cell component)
+// ├─> not editable: renders basic TableCell with content directly
+// └─> editable: delegates to EditableCell
+//     ├─> not editing: shows content with edit button on hover
+//     └─> editing: uses CellInlineEditor for input
+//
+// EditorCell (Row editor mode cell component)
+// └─> renders appropriate input field based on config.type in TableCell
+//
+// SelectionCell (Row selection checkbox)
+// └─> renders Checkbox in TableCell
+//
+// ActionsCell (Action dropdown menu)
+// └─> renders DropdownMenu with actions in TableCell
+//
+// EditorSelectionCell (Selection in row editor mode)
+// └─> renders disabled Checkbox in TableCell
+//
+// EditorActionCell (Save/Cancel buttons in row editor mode)
+// └─> renders Save/Cancel buttons in TableCell
+//
+// CellInlineEditor (Inline editing component)
+// └─> renders appropriate input field based on type (no TableCell)
+//
+// ===================================================================
 
 // -------------------------------------------------------------------
 // UTILITY FUNCTIONS
@@ -114,6 +146,7 @@ const renderCellValueDefault = (
 
 // -------------------------------------------------------------------
 // SELECTION CELL COMPONENT
+// The checkbox on the left to select the row
 // -------------------------------------------------------------------
 
 interface SelectionCellProps {
@@ -127,18 +160,46 @@ export const SelectionCell = memo(function SelectionCell({
   onToggle,
 }: SelectionCellProps) {
   return (
-    <div className="flex items-center justify-center">
-      <Checkbox
-        checked={isSelected}
-        onCheckedChange={onToggle}
-        aria-label="Select row"
-      />
-    </div>
+    <TableCell className="p-2 w-12 min-w-12 max-w-12">
+      <div className="flex items-center justify-center w-8 min-w-8 max-w-8 mx-auto">
+        <div className="flex items-center justify-center">
+          <Checkbox
+            checked={isSelected}
+            onCheckedChange={onToggle}
+            aria-label="Select row"
+          />
+        </div>
+      </div>
+    </TableCell>
   );
 });
 
 // -------------------------------------------------------------------
+// ROW EDITOR SELECTION CELL COMPONENT
+// The checkbox on when in row editor mode
+// -------------------------------------------------------------------
+
+interface EditorSelectionCellProps {
+  showSelection: boolean;
+}
+
+export function EditorSelectionCell({
+  showSelection,
+}: EditorSelectionCellProps) {
+  if (!showSelection) return null;
+
+  return (
+    <TableCell className="p-2 w-12 min-w-12 max-w-12">
+      <div className="flex items-center justify-center w-8 min-w-8 max-w-8 mx-auto">
+        <Checkbox disabled className="opacity-50" />
+      </div>
+    </TableCell>
+  );
+}
+
+// -------------------------------------------------------------------
 // ACTIONS CELL COMPONENT
+// The dropdown menu with the actions
 // -------------------------------------------------------------------
 
 interface ActionsCellProps<T> {
@@ -159,32 +220,36 @@ export const ActionsCell = memo(
     if (!editable && actions.length === 0) return null;
 
     return (
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-8 w-8 p-0">
-            <span className="sr-only">Open menu</span>
-            <MoreHorizontal className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          {editable && (
-            <DropdownMenuItem onClick={onEdit}>
-              <Edit className="mr-2 h-4 w-4" />
-              Edit
-            </DropdownMenuItem>
-          )}
-          {actions.map((action, index) => (
-            <DropdownMenuItem
-              key={index}
-              onClick={() => action.onClick(row)}
-              className={action.className}
-            >
-              {action.icon && <span className="mr-2">{action.icon}</span>}
-              {action.label}
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <TableCell className="p-2 w-[68px] min-w-[68px] max-w-[68px]">
+        <div className="flex items-center justify-center w-[52px] min-w-[52px] max-w-[52px] mx-auto">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8 p-0">
+                <span className="sr-only">Open menu</span>
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {editable && (
+                <DropdownMenuItem onClick={onEdit}>
+                  <Edit className="mr-2 h-4 w-4" />
+                  Edit
+                </DropdownMenuItem>
+              )}
+              {actions.map((action, index) => (
+                <DropdownMenuItem
+                  key={index}
+                  onClick={() => action.onClick(row)}
+                  className={action.className}
+                >
+                  {action.icon && <span className="mr-2">{action.icon}</span>}
+                  {action.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </TableCell>
     );
   },
   (prevProps, nextProps) => {
@@ -198,10 +263,181 @@ export const ActionsCell = memo(
 ) as <T>(props: ActionsCellProps<T>) => JSX.Element | null;
 
 // -------------------------------------------------------------------
-// CELL EDITOR COMPONENT
+// ROW EDITOR ACTIONS CELL COMPONENT
+// The dropdown menu with the actions when in row editor mode (save and cancel)
 // -------------------------------------------------------------------
 
-interface CellEditorProps<T> {
+interface EditorActionCellProps {
+  onSave: () => void;
+  onCancel: () => void;
+}
+
+export function EditorActionCell({ onSave, onCancel }: EditorActionCellProps) {
+  return (
+    <TableCell className="p-2 w-[68px] min-w-[68px] max-w-[68px]">
+      <div className="flex flex-col items-center justify-center gap-1 w-[52px] min-w-[52px] max-w-[52px] mx-auto">
+        <Button size="icon" onClick={onSave} className="h-8 w-8 p-0">
+          <Save className="size-4" />
+        </Button>
+        <Button
+          size="icon"
+          variant="destructive"
+          onClick={onCancel}
+          className="h-8 w-8 p-0"
+        >
+          <X className="size-4" />
+        </Button>
+      </div>
+    </TableCell>
+  );
+}
+
+// -------------------------------------------------------------------
+// ROW EDITOR CELL COMPONENT
+// The cell when in row editor mode (every cell except the selection and actions cells)
+// -------------------------------------------------------------------
+
+interface EditorCellProps<T> {
+  columnKey: string;
+  config: any;
+  editedRow: T;
+  onFieldChange: (key: string, value: any) => void;
+  timezone?: string;
+}
+
+export function EditorCell<T extends Record<string, any>>({
+  columnKey,
+  config,
+  editedRow,
+  onFieldChange,
+  timezone,
+}: EditorCellProps<T>) {
+  const value = editedRow[columnKey as keyof T];
+
+  const renderField = () => {
+    if (config.editable === false) {
+      switch (config.type) {
+        case "boolean":
+          return <Switch checked={value ?? false} disabled />;
+        case "date":
+          return value ? (
+            formatDateTime(value, timezone)
+          ) : (
+            <span className="text-muted-foreground">
+              {config.placeholder || ""}
+            </span>
+          );
+        case "multi-select":
+          return Array.isArray(value) ? (
+            <div className="flex flex-wrap gap-1">
+              {value.map((item: string) => (
+                <span
+                  key={item}
+                  className="inline-flex items-center rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700"
+                >
+                  {item}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <span className="text-muted-foreground">
+              {config.placeholder || ""}
+            </span>
+          );
+        default:
+          return value || config.placeholder || "";
+      }
+    }
+
+    switch (config.type) {
+      case "text":
+        return (
+          <Input
+            value={value || ""}
+            onChange={(e) => onFieldChange(columnKey, e.target.value)}
+            placeholder={config.placeholder}
+            className="h-8"
+          />
+        );
+
+      case "number":
+        return (
+          <Input
+            type="number"
+            value={value || ""}
+            onChange={(e) => onFieldChange(columnKey, Number(e.target.value))}
+            placeholder={config.placeholder}
+            className="h-8"
+          />
+        );
+
+      case "boolean":
+        return (
+          <Switch
+            checked={value ?? false}
+            onCheckedChange={(checked) => onFieldChange(columnKey, checked)}
+          />
+        );
+
+      case "select":
+        return (
+          <Select
+            value={value || ""}
+            onValueChange={(newValue) => onFieldChange(columnKey, newValue)}
+          >
+            <SelectTrigger className="h-8">
+              <SelectValue placeholder={config.placeholder} />
+            </SelectTrigger>
+            <SelectContent>
+              {config.options?.map((option: string) => (
+                <SelectItem key={option} value={option}>
+                  {option}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        );
+
+      case "date":
+        return (
+          <DateTimePicker
+            value={value ? new Date(value) : undefined}
+            onChange={(date) =>
+              onFieldChange(columnKey, date ? date.getTime() : null)
+            }
+            compact
+            showLabels={false}
+          />
+        );
+
+      case "multi-select":
+        return (
+          <MultiSelect
+            options={config.options || []}
+            selected={Array.isArray(value) ? value : []}
+            onChange={(selected) => onFieldChange(columnKey, selected)}
+            placeholder={config.placeholder || "Select options..."}
+          />
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <TableCell className="p-2 min-w-0">
+      <div className="min-w-0">{renderField()}</div>
+    </TableCell>
+  );
+}
+
+// -------------------------------------------------------------------
+// CELL INLINE EDITOR COMPONENT
+// The inline editor for the cell (after hovering over the cell and clicking the edit icon)
+// -------------------------------------------------------------------
+
+interface CellInlineEditorProps<T> {
   value: any;
   type: DataTableFieldType;
   options?: string[];
@@ -209,13 +445,13 @@ interface CellEditorProps<T> {
   placeholder?: string;
 }
 
-export function CellEditor<T>({
+export function CellInlineEditor<T>({
   value,
   type,
   options,
   onSave,
   placeholder,
-}: CellEditorProps<T>) {
+}: CellInlineEditorProps<T>) {
   const [editValue, setEditValue] = useState(value);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -424,38 +660,38 @@ export function CellEditor<T>({
 }
 
 // -------------------------------------------------------------------
-// HOVERABLE CELL COMPONENT
+// EDITABLE CELL COMPONENT
+// A cell that can be hovered to allow for inline editing
 // -------------------------------------------------------------------
 
-interface HoverableCellProps<T> {
+interface EditableCellProps {
   value: any;
   type: DataTableFieldType;
   options?: string[];
   onSave: (value: any) => void;
   placeholder?: string;
-  editable?: boolean;
   render?: (value: any) => React.ReactNode;
   timezone?: string;
 }
 
-function HoverableCell<T>({
+// Editable cell component with integrated hover state and TableCell wrapper
+const EditableCell = memo(function EditableCell({
   value,
   type,
   options,
   onSave,
   placeholder,
-  editable = true,
   render,
   timezone,
-}: HoverableCellProps<T>) {
-  const [isEditing, setIsEditing] = useState(false);
+}: EditableCellProps) {
   const [isHovered, setIsHovered] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const editTriggerRef = useRef<HTMLDivElement>(null);
 
   // Auto-focus when entering edit mode
   useEffect(() => {
     if (isEditing) {
-      // Small delay to ensure the CellEditor has rendered
+      // Small delay to ensure the CellInlineEditor has rendered
       setTimeout(() => {
         const input = editTriggerRef.current?.querySelector(
           "input, select, button"
@@ -467,120 +703,113 @@ function HoverableCell<T>({
     }
   }, [isEditing]);
 
-  if (isEditing) {
-    return (
-      <div className="min-w-0 w-full" ref={editTriggerRef}>
-        <CellEditor
-          value={value}
-          type={type}
-          options={options}
-          placeholder={placeholder}
-          onSave={(newValue) => {
-            // Only save if the value actually changed
-            if (hasValueChanged(value, newValue)) {
-              onSave(newValue);
-            }
-            setIsEditing(false);
-          }}
-        />
-      </div>
-    );
-  }
-
-  // Always wrap in hover container, regardless of custom render
   return (
-    <div
-      className="relative min-w-0 w-full group"
+    <TableCell
+      className="p-2 min-w-0"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div className="min-w-0 pr-8">
-        {/* Always check empty first, then use custom render or default */}
-        {renderCellValueWithEmptyCheck(
-          value,
-          type,
-          placeholder,
-          render,
-          timezone
-        )}
-      </div>
-      {editable && isHovered && (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="absolute right-0 top-1/2 -translate-y-1/2 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity z-10"
-          onClick={(e) => {
-            e.stopPropagation();
-            setIsEditing(true);
-          }}
-        >
-          <Edit2 className="h-3 w-3" />
-        </Button>
+      {isEditing ? (
+        <div className="min-w-0 w-full" ref={editTriggerRef}>
+          <CellInlineEditor
+            value={value}
+            type={type}
+            options={options}
+            placeholder={placeholder}
+            onSave={(newValue) => {
+              // Only save if the value actually changed
+              if (hasValueChanged(value, newValue)) {
+                onSave(newValue);
+              }
+              setIsEditing(false);
+            }}
+          />
+        </div>
+      ) : (
+        <div className="relative min-w-0 w-full group">
+          <div className="min-w-0 pr-8">
+            {/* Always check empty first, then use custom render or default */}
+            {renderCellValueWithEmptyCheck(
+              value,
+              type,
+              placeholder,
+              render,
+              timezone
+            )}
+          </div>
+          {isHovered && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="absolute right-0 top-1/2 -translate-y-1/2 h-6 w-6 p-0 opacity-100 transition-opacity z-10"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsEditing(true);
+              }}
+            >
+              <Edit2 className="h-3 w-3" />
+            </Button>
+          )}
+        </div>
       )}
-    </div>
+    </TableCell>
   );
-}
+});
 
 // -------------------------------------------------------------------
-// DATA TABLE CELL COMPONENT (MAIN EXPORT)
+// DATA TABLE CELL COMPONENT (MAIN DATA CELL WITH HOVER)
+// A complete table cell that handles hover state, editing, and content display
 // -------------------------------------------------------------------
 
 interface DataTableCellProps<T> {
-  value: any;
-  type: DataTableFieldType;
-  options?: string[];
-  placeholder?: string;
-  editable?: boolean;
-  render?: (value: any) => React.ReactNode;
-  onSave?: (value: any) => void;
-  isEditing?: boolean;
+  row: T;
+  columnKey: string;
+  config: any;
+  editable: boolean;
+  onRowSave: (row: T) => void;
   timezone?: string;
 }
 
-// Memoized cell component
+// Main cell component with conditional rendering (memory optimized)
 export const DataTableCell = memo(
-  function DataTableCell<T>({
-    value,
-    type,
-    options,
-    placeholder,
-    editable = true,
-    render,
-    onSave,
-    isEditing = false,
+  function DataTableCell<T extends Record<string, any>>({
+    row,
+    columnKey,
+    config,
+    editable,
+    onRowSave,
     timezone,
   }: DataTableCellProps<T>) {
-    // If row is being edited, don't render anything (handled by RowEditor)
-    if (isEditing) {
-      return null;
-    }
+    const value = row[columnKey as keyof T];
+    const isFieldEditable = editable && config.editable !== false;
 
-    // For simple, non-editable values, render directly without components
-    if (!editable) {
-      // Always check empty first, then use custom render or default
+    // For non-editable cells, render directly without any state
+    if (!isFieldEditable) {
       return (
-        <>
+        <TableCell className="p-2 min-w-0">
           {renderCellValueWithEmptyCheck(
             value,
-            type,
-            placeholder,
-            render,
+            config.type,
+            config.placeholder,
+            config.render ? (val) => config.render!(val, row) : undefined,
             timezone
           )}
-        </>
+        </TableCell>
       );
     }
 
-    // For editable cells, use the HoverableCell component
+    // For editable cells, use EditableCell component
     return (
-      <HoverableCell
-        value={type === "boolean" ? value ?? false : value}
-        type={type}
-        options={options}
-        placeholder={placeholder}
-        editable={editable}
-        render={render}
-        onSave={onSave || (() => {})}
+      <EditableCell
+        value={config.type === "boolean" ? value ?? false : value}
+        type={config.type}
+        options={config.options}
+        placeholder={config.placeholder}
+        render={config.render ? (val) => config.render!(val, row) : undefined}
+        onSave={(newValue) => {
+          const updatedRow = { ...row, [columnKey]: newValue } as T;
+          onRowSave(updatedRow);
+        }}
         timezone={timezone}
       />
     );
@@ -588,12 +817,13 @@ export const DataTableCell = memo(
   (prevProps, nextProps) => {
     // Custom comparison function for better memoization
     return (
-      prevProps.value === nextProps.value &&
-      prevProps.type === nextProps.type &&
+      prevProps.row === nextProps.row &&
+      prevProps.columnKey === nextProps.columnKey &&
       prevProps.editable === nextProps.editable &&
-      prevProps.isEditing === nextProps.isEditing &&
       prevProps.timezone === nextProps.timezone &&
-      JSON.stringify(prevProps.options) === JSON.stringify(nextProps.options)
+      JSON.stringify(prevProps.config) === JSON.stringify(nextProps.config)
     );
   }
-);
+) as <T extends Record<string, any>>(
+  props: DataTableCellProps<T>
+) => JSX.Element;
