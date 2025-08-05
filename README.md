@@ -323,7 +323,7 @@ Table state (sorting, filters, column order, visibility) is automatically saved 
 
 ## 🚀 Live Demo
 
-Visit the live demo: **[https://vercel.com/alexs-projects-d36d16be/v0-data-table-factory](https://vercel.com/alexs-projects-d36d16be/v0-data-table-factory)**
+Visit the live demo: **[https://v0-data-table-factory.vercel.app](https://v0-data-table-factory.vercel.app)**
 
 ## 🤝 Contribution
 
