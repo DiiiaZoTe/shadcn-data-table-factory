@@ -323,9 +323,9 @@ Table state (sorting, filters, column order, visibility) is automatically saved 
 
 Visit the live demo: **[https://vercel.com/alexs-projects-d36d16be/v0-data-table-factory](https://vercel.com/alexs-projects-d36d16be/v0-data-table-factory)**
 
-## 🤝 Contributing
+## 🤝 Contribution
 
-This project was started with [v0.dev](https://v0.dev) and continues to evolve. Feel free to submit issues and enhancement requests!
+This project was started with [v0.dev](https://v0.dev) and then finished using claude 4.
 
 ## 📝 License
 
