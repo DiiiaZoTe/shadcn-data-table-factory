@@ -5,6 +5,7 @@ A comprehensive, feature-rich data table component built with React, TypeScript,
 ## 🚀 Features
 
 ### Core Functionality
+- **Flexible Row Identification** - Specify any field as unique row identifier with `rowId` prop
 - **Dynamic Column Configuration** - Define table structure with flexible column types
 - **Advanced Sorting** - Multi-column sorting with visual indicators
 - **Powerful Filtering** - Column-specific filters with global search
@@ -158,6 +159,7 @@ const shape: DataTableShape<User> = {
 // Use the component (minimal - features are opt-in)
 <DataTableFactory
   data={users}
+  rowId="id"  // Specify which field is the unique identifier
   shape={shape}
   tableName="users-table"
 />
@@ -165,6 +167,7 @@ const shape: DataTableShape<User> = {
 // Or with full features enabled
 <DataTableFactory
   data={users}
+  rowId="id"  // Required: unique identifier field
   shape={shape}
   tableName="users-table"
   editable={true}
@@ -181,6 +184,34 @@ const shape: DataTableShape<User> = {
 ```
 
 ## 🎨 Customization
+
+### Required Props
+
+#### Row Identifier (`rowId`)
+The `rowId` prop is **required** and specifies which field in your data should be used as the unique identifier for each row.
+If you do not have one, generate one for each row, like a uuid for instance.
+
+```tsx
+// If your data looks like this:
+const users = [
+  { id: '1', name: 'John', email: 'john@example.com' },
+  { userId: '2', name: 'Jane', email: 'jane@example.com' },
+];
+
+// Use the appropriate field name:
+<DataTableFactory 
+  data={users} 
+  rowId="id"        // For the first dataset
+  // or
+  rowId="userId"    // For the second dataset
+/>
+```
+
+**Why it's needed:**
+- **Row Selection**: Enables proper tracking of selected rows across filtering/sorting
+- **Edit Mode**: Identifies which specific row is being edited
+- **Performance**: Helps React efficiently update only changed rows
+- **State Management**: Maintains row state during table operations
 
 ### Global Feature Toggles (Opt-in Architecture)
 All features are **disabled by default** for clean, performant tables:
@@ -230,6 +261,7 @@ import { TIMEZONES } from '@/types/data-table';
 
 <DataTableFactory
   data={users}
+  rowId="id"  // Required: unique identifier field
   shape={shape}
   exportable={true}  // Enable export button
   timezone={TIMEZONES.EASTERN}  // Dates exported in ET
@@ -257,6 +289,9 @@ Display and export dates in specific timezones:
 import { TIMEZONES } from '@/types/data-table';
 
 <DataTableFactory 
+  data={users}
+  rowId="id"  // Required: unique identifier field
+  shape={shape}
   timezone={TIMEZONES.EASTERN}  // or "America/New_York"
   // ...
 />
