@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useLocalStorage } from "usehooks-ts";
 import {
   type ColumnDef,
@@ -37,7 +37,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { DataTableProps, DataTableAction } from "@/types/data-table";
+import type { DataTableProps, DataTableAction } from "./types";
 import { ColumnFilter } from "./column-filters";
 import { ColumnControls } from "./column-controls";
 import { DataTablePagination } from "./pagination";

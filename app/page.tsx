@@ -2,8 +2,11 @@
 
 import { useState } from "react";
 import { DataTableFactory } from "@/components/data-table/data-table-factory";
-import type { DataTableShape, DataTableAction } from "@/types/data-table";
-import { TIMEZONES } from "@/types/data-table";
+import type {
+  DataTableShape,
+  DataTableAction,
+} from "@/components/data-table/types";
+import { TIMEZONES } from "@/components/data-table/types";
 import { Eye, Trash2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -87,7 +90,7 @@ const generateUsers = (count: number): User[] => {
 export default function ExamplePage() {
   const [data, setData] = useState<User[]>(generateUsers(150)); // Generate 150 users for pagination testing
   const [selectedRows, setSelectedRows] = useState<User[]>([]);
-  
+
   // Global feature toggles for demonstration
   const [globalSortable, setGlobalSortable] = useState(true);
   const [globalFilterable, setGlobalFilterable] = useState(true);

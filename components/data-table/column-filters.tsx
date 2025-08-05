@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/select";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
-import type { DataTableFieldType } from "@/types/data-table";
+import type { DataTableFieldType } from "@/components/data-table/types";
 
 interface ColumnFilterProps<T> {
   column: Column<T, unknown>;

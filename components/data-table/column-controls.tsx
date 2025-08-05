@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Settings2, GripVertical, ChevronUp, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { ColumnVisibility } from "@/types/data-table";
+import type { ColumnVisibility } from "@/components/data-table/types";
 
 interface ColumnControlsProps<T> {
   columns: Array<{ key: string; label: string }>;
@@ -174,9 +174,7 @@ export function ColumnControls<T>({
               ref={provided.innerRef}
               {...provided.draggableProps}
               {...provided.dragHandleProps}
-              className={cn(
-                snapshot.isDragging && "bg-accent rounded-md"
-              )}
+              className={cn(snapshot.isDragging && "bg-accent rounded-md")}
               style={{
                 ...provided.draggableProps.style,
                 // Ensure the dragged item maintains its appearance

@@ -14,7 +14,7 @@ import type {
   DataTableShape,
   DataTableAction,
   ColumnVisibility,
-} from "@/types/data-table";
+} from "@/components/data-table/types";
 import { useState } from "react";
 import type { JSX } from "react";
 import { hasValueChanged } from "./utils";

@@ -2,9 +2,9 @@
 
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
-import type { DataTableShape } from "@/types/data-table";
+import type { DataTableShape } from "@/components/data-table/types";
 import { formatDateTimeString } from "./utils";
-import { Button, ButtonProps } from "../ui/button";
+import { Button, type ButtonProps } from "@/components/ui/button";
 import { Download } from "lucide-react";
 
 export interface ExportData<T> {

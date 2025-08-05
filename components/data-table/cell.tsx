@@ -15,7 +15,10 @@ import {
 } from "@/components/ui/select";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
-import type { DataTableAction, DataTableFieldType } from "@/types/data-table";
+import type {
+  DataTableAction,
+  DataTableFieldType,
+} from "@/components/data-table/types";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
