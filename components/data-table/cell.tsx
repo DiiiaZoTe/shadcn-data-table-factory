@@ -1,10 +1,11 @@
 "use client";
 
 import type React from "react";
+import Link from "next/link";
 import { memo, useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Edit, Edit2, MoreHorizontal } from "lucide-react";
+import { Edit, Edit2, MoreHorizontal, ExternalLink } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -30,6 +31,7 @@ import {
 import { formatDateTime, hasValueChanged } from "./utils";
 import { TableCell } from "@/components/ui/table";
 import { Save, X } from "lucide-react";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 // ===================================================================
 // CELL COMPONENTS ARCHITECTURE OVERVIEW
@@ -79,6 +81,8 @@ const isValueEmpty = (value: any, type: DataTableFieldType): boolean => {
       return !Array.isArray(value) || value.length === 0;
     case "number":
       return value === null || value === undefined;
+    case "link":
+      return isEmpty(value);
     default:
       return isEmpty(value);
   }
@@ -139,6 +143,27 @@ const renderCellValueDefault = (
             </Badge>
           ))}
         </div>
+      );
+
+    case "image":
+      return (
+        <Avatar className="h-8 w-8">
+          <AvatarImage src={value} alt="Image" />
+          <AvatarFallback className="text-xs">IMG</AvatarFallback>
+        </Avatar>
+      );
+
+    case "link":
+      return (
+        <Link
+          href={value}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 underline"
+        >
+          {value}
+          <ExternalLink className="h-3 w-3" />
+        </Link>
       );
 
     case "text":
@@ -347,6 +372,33 @@ export function EditorCell<T extends Record<string, any>>({
               {config.placeholder || ""}
             </span>
           );
+        case "image":
+          return value ? (
+            <Avatar className="h-8 w-8">
+              <AvatarImage src={value} alt="Image" />
+              <AvatarFallback className="text-xs">IMG</AvatarFallback>
+            </Avatar>
+          ) : (
+            <span className="text-muted-foreground">
+              {config.placeholder || "No image"}
+            </span>
+          );
+        case "link":
+          return value ? (
+            <Link
+              href={value}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 underline"
+            >
+              <ExternalLink className="h-3 w-3" />
+              {value}
+            </Link>
+          ) : (
+            <span className="text-muted-foreground">
+              {config.placeholder || "No link"}
+            </span>
+          );
         default:
           return value || config.placeholder || "";
       }
@@ -421,6 +473,34 @@ export function EditorCell<T extends Record<string, any>>({
             onChange={(selected) => onFieldChange(columnKey, selected)}
             placeholder={config.placeholder || "Select options..."}
           />
+        );
+
+      case "image":
+        return (
+          <div className="flex items-center gap-2">
+            <Avatar className="h-8 w-8">
+              <AvatarImage src={value || ""} alt="Image" />
+              <AvatarFallback className="text-xs">IMG</AvatarFallback>
+            </Avatar>
+            <Input
+              value={value || ""}
+              onChange={(e) => onFieldChange(columnKey, e.target.value)}
+              placeholder={config.placeholder || "Enter image URL..."}
+              className="h-8 flex-1"
+            />
+          </div>
+        );
+
+      case "link":
+        return (
+          <div className="flex items-center gap-2">
+            <Input
+              value={value || ""}
+              onChange={(e) => onFieldChange(columnKey, e.target.value)}
+              placeholder={config.placeholder || "Enter URL..."}
+              className="h-8 flex-1"
+            />
+          </div>
         );
 
       default:
@@ -653,6 +733,51 @@ export function CellInlineEditor<T>({
             }}
             placeholder={placeholder || "Select options..."}
             withIndividualRemove={false}
+          />
+        </div>
+      );
+
+    case "image":
+      return (
+        <div className="flex items-center gap-2">
+          <Avatar className="h-8 w-8">
+            <AvatarImage src={editValue || ""} alt="Image" />
+            <AvatarFallback className="text-xs">IMG</AvatarFallback>
+          </Avatar>
+          <Input
+            ref={inputRef}
+            value={editValue || ""}
+            onChange={(e) => setEditValue(e.target.value)}
+            onBlur={handleSave}
+            onKeyDown={handleKeyDown}
+            className="h-8 flex-1"
+            placeholder={placeholder || "Enter image URL..."}
+          />
+        </div>
+      );
+
+    case "link":
+      return (
+        <div className="flex items-center gap-2">
+          {editValue && (
+            <Link
+              href={editValue}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 underline text-sm"
+            >
+              {editValue}
+              <ExternalLink className="h-3 w-3" />
+            </Link>
+          )}
+          <Input
+            ref={inputRef}
+            value={editValue || ""}
+            onChange={(e) => setEditValue(e.target.value)}
+            onBlur={handleSave}
+            onKeyDown={handleKeyDown}
+            placeholder={placeholder || "Enter URL..."}
+            className="h-8 flex-1"
           />
         </div>
       );

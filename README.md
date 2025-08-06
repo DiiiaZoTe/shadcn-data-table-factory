@@ -27,6 +27,8 @@ You can extract the needed table factory from `app/components/data-table`.
 - **Select** - Dropdown selection from predefined options
 - **Multi-Select** - Multiple value selection with tags
 - **Date** - Date picker with time support and timezone display
+- **Image** - Avatar display with URL input for editing
+- **Link** - Clickable links with separate label and URL fields
 
 ### UI/UX Enhancements
 - **Responsive Design** - Works seamlessly on desktop and mobile
@@ -148,12 +150,16 @@ type User = {
   email: string;
   age: number;
   isActive: boolean;
+  avatar: string;
+  website: string;
 };
 
 // Define table structure
 const shape: DataTableShape<User> = {
+  avatar: { label: 'Avatar', type: 'image', editable: true, placeholder: 'Enter image URL...' },
   name: { label: 'Full Name', type: 'text', editable: true },
   email: { label: 'Email', type: 'text', editable: false },
+  website: { label: 'Website', type: 'link', editable: true, placeholder: 'Enter website URL...' },
   age: { label: 'Age', type: 'number', editable: true },
   isActive: { label: 'Active', type: 'boolean', editable: true },
 };
@@ -242,6 +248,61 @@ Each column can be individually configured with:
 - `searchable` - Include in global search (requires global `searchable={true}`)
 - `placeholder` - Placeholder text for empty values
 - `render` - Custom render function for complex display logic
+
+#### Image Column Type
+The `image` column type displays images using the shadcn Avatar component:
+
+```tsx
+// Image column configuration
+const shape: DataTableShape<User> = {
+  profilePicture: { 
+    label: 'Profile Picture', 
+    type: 'image', 
+    editable: true,
+    placeholder: 'Enter image URL...' 
+  },
+  // ... other columns
+};
+```
+
+**Features:**
+- **Display**: Shows images in a circular avatar (32x32px by default)
+- **Fallback**: Shows "IMG" text when image fails to load
+- **Editing**: Inline editor with live preview and URL input field
+- **Row Editor**: Full-width input with avatar preview
+- **Export**: Image URLs are exported to Excel as text
+
+#### Link Column Type
+The `link` column type displays clickable URLs with external link icons:
+
+```tsx
+// Link column configuration
+const shape: DataTableShape<User> = {
+  website: { 
+    label: 'Website', 
+    type: 'link', 
+    editable: true,
+    placeholder: 'Enter website URL...' 
+  },
+  // ... other columns
+};
+
+// Data structure
+const users = [
+  {
+    id: '1',
+    website: 'https://example.com'
+  }
+];
+```
+
+**Features:**
+- **Display**: Clickable links with external link icon, opens in new tab
+- **Data Structure**: Simple string containing the URL
+- **Editing**: Single URL input field with live preview
+- **Row Editor**: URL input with link preview
+- **Safety**: All links include `rel="noopener noreferrer"` for security
+- **Export**: URLs are exported to Excel as text
 
 ## 📊 Excel Export
 

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react"
 
 /** type of the field */
-export type DataTableFieldType = "text" | "number" | "date" | "boolean" | "select" | "multi-select"
+export type DataTableFieldType = "text" | "number" | "date" | "boolean" | "select" | "multi-select" | "image" | "link"
 
 /** Supported timezone identifiers */
 export type SupportedTimezone =
@@ -139,6 +139,8 @@ export type DataTableProps<T> = {
   shape: DataTableShape<T>
   /** unique identifier for localStorage keys */
   tableName: string
+  /** is the data loading? */
+  isLoading?: boolean
   /** actions to be displayed in the table */
   actions?: DataTableAction<T>[]
   /** enables/disables row editing */

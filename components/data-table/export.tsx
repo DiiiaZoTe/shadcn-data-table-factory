@@ -57,6 +57,12 @@ function formatValueForExport<T>(
     case "number":
       return typeof value === "number" ? value : "";
 
+    case "image":
+      return String(value || "");
+
+    case "link":
+      return String(value || "");
+
     case "select":
     case "text":
     default:

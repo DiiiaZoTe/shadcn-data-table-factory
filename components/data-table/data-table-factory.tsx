@@ -55,6 +55,7 @@ export function DataTableFactory<T extends Record<string, any>>({
   rowId,
   shape,
   tableName,
+  isLoading = false,
   actions = EMPTY_ACTIONS,
   editable = false,
   onRowSave,
@@ -506,31 +507,7 @@ export function DataTableFactory<T extends Record<string, any>>({
       // Get selected row model which contains the correct selected rows
       const selectedRowModel = table.getSelectedRowModel();
       selectedRows = selectedRowModel.rows.map((row) => row.original);
-
-      console.log("Selection Debug:", {
-        rowSelectionState: rowSelection,
-        selectedRowModelCount: selectedRowModel.rows.length,
-        selectedRowsData: selectedRows.slice(0, 3), // First 3 for debugging
-      });
     }
-
-    console.log("Export Debug Info:", {
-      originalDataLength: data.length,
-      filteredSortedLength: processedData.length,
-      selectedRowsLength: selectedRows?.length || 0,
-      hasFilters: table.getState().columnFilters.length > 0,
-      hasSorting: table.getState().sorting.length > 0,
-      hasGlobalFilter: !!table.getState().globalFilter,
-      visibleColumnsCount: visibleColumns.length,
-      // Show first few rows being exported to verify correct data
-      firstProcessedRows: processedData.slice(0, 2).map((row) => {
-        const sample: any = {};
-        columnOrder.slice(0, 3).forEach((key) => {
-          sample[key] = row[key as keyof T];
-        });
-        return sample;
-      }),
-    });
 
     exportToExcel({
       data: processedData, // This is the filtered and sorted data
@@ -551,8 +528,8 @@ export function DataTableFactory<T extends Record<string, any>>({
     setSorting((prev) => prev.filter((sort) => sort.id !== columnId));
   };
 
-  // Prevent hydration mismatch by not rendering until mounted (when using localStorage)
-  if (persistStorage && !isMounted) {
+  // Prevent hydration mismatch by not rendering until mounted (when using localStorage) or if data is loading
+  if (isLoading || (persistStorage && !isMounted)) {
     return (
       <div className={cn("flex flex-col gap-4", className)}>
         {/* Controls Skeleton */}
