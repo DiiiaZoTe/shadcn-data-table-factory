@@ -29,6 +29,7 @@ You can extract the needed table factory from `app/components/data-table`.
 - **Date** - Date picker with time support and timezone display
 - **Image** - Avatar display with URL input for editing
 - **Link** - Clickable links with separate label and URL fields
+- **Custom** - Fully customizable cells with user-defined render and edit logic
 
 ### UI/UX Enhancements
 - **Responsive Design** - Works seamlessly on desktop and mobile
@@ -303,6 +304,208 @@ const users = [
 - **Row Editor**: URL input with link preview
 - **Safety**: All links include `rel="noopener noreferrer"` for security
 - **Export**: URLs are exported to Excel as text
+
+#### Custom Column Type
+The `custom` column type allows you to create completely custom cell behaviors with full control over display, editing, and data processing:
+
+```tsx
+// Basic custom column configuration
+const shape: DataTableShape<User> = {
+  status: { 
+    label: 'Status', 
+    type: 'custom',
+    editable: true,
+    custom: {
+      // Required: How to display the value
+      render: (value: string, row: User) => {
+        const statusColors = {
+          active: 'bg-green-100 text-green-800',
+          inactive: 'bg-red-100 text-red-800',
+          pending: 'bg-yellow-100 text-yellow-800'
+        };
+        return (
+          <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[value] || 'bg-gray-100 text-gray-800'}`}>
+            {value.toUpperCase()}
+          </span>
+        );
+      },
+      // Optional: Custom editor component (no save/cancel logic needed)
+      renderEditor: (value: string, onChange: (newValue: string) => void) => (
+        <Select value={value} onValueChange={onChange}>
+          <SelectTrigger className="h-8">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="active">Active</SelectItem>
+            <SelectItem value="inactive">Inactive</SelectItem>
+            <SelectItem value="pending">Pending</SelectItem>
+          </SelectContent>
+        </Select>
+      ),
+      // Optional: Custom empty check
+      isEmpty: (value: string) => !value || value === '',
+      // Optional: Custom search value
+      getSearchValue: (value: string) => value.toLowerCase(),
+      // Optional: Custom export value
+      getExportValue: (value: string) => value.toUpperCase(),
+      // Optional: Custom filter comparison
+      compareValue: (value: string, filterValue: string) => 
+        value.toLowerCase().includes(filterValue.toLowerCase())
+    }
+  },
+  // ... other columns
+};
+```
+
+#### Advanced Custom Column Example: Team Management
+
+Here's a comprehensive example of a custom column that handles complex array data with multiple properties:
+
+```tsx
+// Team member type definition
+type TeamMember = {
+  name: string;
+  role: "user" | "admin";
+};
+
+// Custom team column configuration
+const shape: DataTableShape<User> = {
+  team: {
+    label: 'Team Members',
+    type: 'custom',
+    editable: true,
+    custom: {
+      // Display as a list of "name: role" items
+      render: (value: TeamMember[], row: User) => {
+        if (!value || value.length === 0) {
+          return <span className="text-muted-foreground">No team members</span>;
+        }
+        return (
+          <div className="flex flex-wrap gap-1">
+            {value.map((member, index) => (
+              <Badge key={index} variant="secondary" className="text-xs">
+                {member.name}: {member.role}
+              </Badge>
+            ))}
+          </div>
+        );
+      },
+      
+      // Complex editor with multi-select and role assignment
+      renderEditor: (value: TeamMember[], onChange: (newValue: TeamMember[]) => void) => {
+        const [currentTeam, setCurrentTeam] = useState<TeamMember[]>(value || []);
+        const availableNames = ["Alice", "Bob", "Charlie", "Diana", "Eve"];
+
+        const addMember = (name: string) => {
+          const newMember: TeamMember = { name, role: "user" };
+          const updated = [...currentTeam, newMember];
+          setCurrentTeam(updated);
+          onChange(updated);
+        };
+
+        const removeMember = (index: number) => {
+          const updated = currentTeam.filter((_, i) => i !== index);
+          setCurrentTeam(updated);
+          onChange(updated);
+        };
+
+        const updateRole = (index: number, role: "user" | "admin") => {
+          const updated = currentTeam.map((member, i) => 
+            i === index ? { ...member, role } : member
+          );
+          setCurrentTeam(updated);
+          onChange(updated);
+        };
+
+        return (
+          <div className="space-y-2 p-2 min-w-[300px]">
+            {/* Add new member */}
+            <Select onValueChange={addMember}>
+              <SelectTrigger className="h-8">
+                <SelectValue placeholder="Add team member..." />
+              </SelectTrigger>
+              <SelectContent>
+                {availableNames
+                  .filter(name => !currentTeam.some(member => member.name === name))
+                  .map(name => (
+                    <SelectItem key={name} value={name}>{name}</SelectItem>
+                  ))
+                }
+              </SelectContent>
+            </Select>
+
+            {/* Current team members */}
+            {currentTeam.map((member, index) => (
+              <div key={index} className="flex items-center gap-2 p-2 bg-muted rounded">
+                <span className="flex-1 text-sm">{member.name}</span>
+                <Select 
+                  value={member.role} 
+                  onValueChange={(role: "user" | "admin") => updateRole(index, role)}
+                >
+                  <SelectTrigger className="h-6 w-20">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="user">User</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => removeMember(index)}
+                  className="h-6 w-6 p-0"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        );
+      },
+
+      // Custom functions for table operations
+      isEmpty: (value: TeamMember[]) => !value || value.length === 0,
+      getSearchValue: (value: TeamMember[]) => 
+        value?.map(member => `${member.name} ${member.role}`).join(' ') || '',
+      getExportValue: (value: TeamMember[]) => 
+        value?.map(member => `${member.name}: ${member.role}`).join(', ') || '',
+      compareValue: (value: TeamMember[], filterValue: string) =>
+        value?.some(member => 
+          member.name.toLowerCase().includes(filterValue.toLowerCase()) ||
+          member.role.toLowerCase().includes(filterValue.toLowerCase())
+        ) || false
+    }
+  },
+  // ... other columns
+};
+```
+
+**Custom Configuration Options:**
+- **`render`** (required): Function to display the cell value `(value, row) => ReactNode`
+- **`renderEditor`** (optional): Custom editor component `(value, onChange) => ReactNode`
+  - **Note**: Editor only handles input rendering - save/cancel buttons are automatically provided
+  - **Simplified API**: No need to manage save/cancel logic in your editor
+- **`isEmpty`** (optional): Custom empty value check `(value) => boolean`
+- **`getSearchValue`** (optional): Extract searchable text `(value) => string`
+- **`getExportValue`** (optional): Format for Excel export `(value) => any`
+- **`compareValue`** (optional): Custom filtering logic `(value, filterValue) => boolean`
+
+**Enhanced Editing Experience:**
+- **Popover Interface**: Edit controls appear in a clean popover on hover
+- **Explicit Actions**: Save and cancel buttons with keyboard shortcuts (Enter to save, Esc to cancel)
+- **Auto-focus**: Text inputs automatically focus when editing starts
+- **Width Matching**: Popover matches the cell width for consistent alignment
+- **Z-index Management**: Popover appears above dropdown menus and other overlays
+
+**Use Cases:**
+- **Team Management**: Arrays of objects with multiple properties (as shown above)
+- **Status Badges**: Color-coded status indicators with custom styling
+- **Rating Systems**: Star ratings, progress bars, or custom scoring displays
+- **Complex Objects**: Display nested data with custom formatting
+- **Rich Content**: Images, links, buttons, or interactive elements
+- **Custom Inputs**: Specialized input components (color pickers, file uploads, etc.)
+- **Multi-value Fields**: Tags, categories, or any array-based data
 
 ## 📊 Excel Export
 

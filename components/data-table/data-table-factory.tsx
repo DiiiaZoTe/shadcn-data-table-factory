@@ -100,8 +100,28 @@ export function DataTableFactory<T extends Record<string, any>>({
     setIsMounted(true);
   }, []);
 
-  // Compute initial values
-  const initialColumnOrder = Object.keys(shape).filter((key) => shape[key]);
+  // Compute initial values and merge with stored column order
+  const getCurrentColumnOrder = () =>
+    Object.keys(shape).filter((key) => shape[key]);
+
+  const mergeColumnOrder = (
+    storedOrder: string[],
+    currentColumns: string[]
+  ): string[] => {
+    // Filter out columns that no longer exist in the shape
+    const validStoredColumns = storedOrder.filter((col) =>
+      currentColumns.includes(col)
+    );
+
+    // Add new columns that aren't in the stored order (append at the end)
+    const newColumns = currentColumns.filter(
+      (col) => !storedOrder.includes(col)
+    );
+
+    return [...validStoredColumns, ...newColumns];
+  };
+
+  const initialColumnOrder = getCurrentColumnOrder();
   const initialPaginationState: PaginationState = {
     pageIndex: 0,
     pageSize: paginationConfig.defaultPageSize,
@@ -148,9 +168,40 @@ export function DataTableFactory<T extends Record<string, any>>({
   );
   const [columnOrderState, setColumnOrderState] =
     useState<string[]>(initialColumnOrder);
-  const [columnOrder, setColumnOrder] = persistStorage
-    ? [columnOrderStorage, setColumnOrderStorage]
-    : [columnOrderState, setColumnOrderState];
+
+  // Merge stored column order with current columns to handle shape changes
+  const rawColumnOrder = persistStorage ? columnOrderStorage : columnOrderState;
+  const mergedColumnOrder = useMemo(() => {
+    const currentColumns = getCurrentColumnOrder();
+    return mergeColumnOrder(rawColumnOrder, currentColumns);
+  }, [rawColumnOrder, shape]);
+
+  // Update storage if the merged order is different from stored order
+  useEffect(() => {
+    if (
+      persistStorage &&
+      JSON.stringify(mergedColumnOrder) !== JSON.stringify(columnOrderStorage)
+    ) {
+      setColumnOrderStorage(mergedColumnOrder);
+    } else if (
+      !persistStorage &&
+      JSON.stringify(mergedColumnOrder) !== JSON.stringify(columnOrderState)
+    ) {
+      setColumnOrderState(mergedColumnOrder);
+    }
+  }, [
+    mergedColumnOrder,
+    persistStorage,
+    columnOrderStorage,
+    setColumnOrderStorage,
+    columnOrderState,
+    setColumnOrderState,
+  ]);
+
+  const setColumnOrder = persistStorage
+    ? setColumnOrderStorage
+    : setColumnOrderState;
+  const columnOrder = mergedColumnOrder;
 
   const [paginationStateStorage, setPaginationStateStorage] =
     useLocalStorage<PaginationState>(
@@ -198,8 +249,18 @@ export function DataTableFactory<T extends Record<string, any>>({
             );
           }
           return true;
+        case "custom":
+          if (config.custom?.compareValue) {
+            return config.custom.compareValue(cellValue, value);
+          }
+          // Fallback to default string comparison
+          const customCellStr = String(cellValue).toLowerCase();
+          const customValueStr = String(value).toLowerCase();
+          return customCellStr.includes(customValueStr);
         case "text":
         case "number":
+        case "image":
+        case "link":
         default:
           const cellStr = String(cellValue).toLowerCase();
           const valueStr = String(value).toLowerCase();
@@ -219,6 +280,15 @@ export function DataTableFactory<T extends Record<string, any>>({
       if (config?.searchable === false) return true;
 
       const value = row.getValue(columnId);
+
+      // Handle custom types with custom search logic
+      if (config?.type === "custom" && config.custom?.getSearchValue) {
+        const searchStr = config.custom.getSearchValue(value).toLowerCase();
+        const filterStr = String(filterValue).toLowerCase();
+        return searchStr.includes(filterStr);
+      }
+
+      // Default search behavior
       const searchStr = String(value).toLowerCase();
       const filterStr = String(filterValue).toLowerCase();
       return searchStr.includes(filterStr);
@@ -659,7 +729,7 @@ export function DataTableFactory<T extends Record<string, any>>({
 
       {/* Table */}
       <div className="rounded-md border">
-        <Table withBorders={withBorders}>
+        <Table withBorders={withBorders} style={{height: "1px"}}>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
@@ -667,7 +737,7 @@ export function DataTableFactory<T extends Record<string, any>>({
                   <TableHead
                     key={header.id}
                     className={cn(
-                      "p-2 text-left",
+                      "p-2 text-left min-w-24",
                       header.id === "select" && "w-12 min-w-12 max-w-12",
                       header.id === "actions" &&
                         "w-[68px] min-w-[68px] max-w-[68px]"

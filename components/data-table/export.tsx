@@ -63,6 +63,11 @@ function formatValueForExport<T>(
     case "link":
       return String(value || "");
 
+    case "custom":
+      return config.custom?.getExportValue
+        ? config.custom.getExportValue(value)
+        : String(value || "");
+
     case "select":
     case "text":
     default:

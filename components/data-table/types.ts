@@ -1,7 +1,7 @@
 import type { ReactNode } from "react"
 
 /** type of the field */
-export type DataTableFieldType = "text" | "number" | "date" | "boolean" | "select" | "multi-select" | "image" | "link"
+export type DataTableFieldType = "text" | "number" | "date" | "boolean" | "select" | "multi-select" | "image" | "link" | "custom"
 
 /** Supported timezone identifiers */
 export type SupportedTimezone =
@@ -83,28 +83,59 @@ export const TIMEZONES = {
   UTC: "UTC" as const,
 } as const;
 
+/** Custom cell configuration for the custom type */
+export interface CustomCellConfig<T, K extends keyof T> {
+  /** Custom render function for display mode */
+  render: (value: T[K], row: T) => ReactNode
+  /** Custom editor component for edit mode (optional) - only responsible for editing, cell handles save/cancel */
+  renderEditor?: (value: T[K], onChange: (value: T[K]) => void) => ReactNode
+  /** Custom function to check if value is empty (optional) */
+  isEmpty?: (value: T[K]) => boolean
+  /** Custom function to format value for search (optional) */
+  getSearchValue?: (value: T[K]) => string
+  /** Custom function to format value for export (optional) */
+  getExportValue?: (value: T[K]) => any
+  /** Custom function to compare values for filtering (optional) */
+  compareValue?: (value: T[K], filterValue: string) => boolean
+}
+
+/** Base column configuration shared by all types */
+type BaseColumnConfig = {
+  /** label to be displayed in the table */
+  label: string
+  /** options for select and multi-select */
+  options?: string[]
+  /** enables/disables row editing, defaults to true */
+  editable?: boolean
+  /** enables/disables sorting, defaults to false */
+  sortable?: boolean
+  /** enables/disables filtering, defaults to false */
+  filterable?: boolean
+  /** enables/disables global search, defaults to false */
+  searchable?: boolean
+  /** placeholder to be displayed when no value is provided */
+  placeholder?: string
+}
+
+/** Column configuration for custom type */
+type CustomColumnConfig<T, K extends keyof T> = BaseColumnConfig & {
+  /** type of the field */
+  type: "custom"
+  /** custom cell configuration (required for custom type) */
+  custom: CustomCellConfig<T, K>
+}
+
+/** Column configuration for non-custom types */
+type StandardColumnConfig<T, K extends keyof T> = BaseColumnConfig & {
+  /** type of the field */
+  type: Exclude<DataTableFieldType, "custom">
+  /** custom render function */
+  render?: (value: T[K], row: T) => ReactNode
+}
+
 /** shape of the table - defines the columns and their properties */
 export type DataTableShape<T> = {
-  [K in keyof T]?: {
-    /** label to be displayed in the table */
-    label: string
-    /** type of the field */
-    type: DataTableFieldType
-    /** options for select and multi-select */
-    options?: string[]
-    /** enables/disables row editing, defaults to true */
-    editable?: boolean
-    /** enables/disables sorting, defaults to false */
-    sortable?: boolean
-    /** enables/disables filtering, defaults to false */
-    filterable?: boolean
-    /** enables/disables global search, defaults to false */
-    searchable?: boolean
-    /** placeholder to be displayed when no value is provided */
-    placeholder?: string
-    /** custom render function */
-    render?: (value: T[K], row: T) => ReactNode
-  }
+  [K in keyof T]?: CustomColumnConfig<T, K> | StandardColumnConfig<T, K>
 }
 
 /** action to be displayed in the table */

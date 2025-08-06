@@ -19,6 +19,7 @@ import { DateTimePicker } from "@/components/ui/date-time-picker";
 import type {
   DataTableAction,
   DataTableFieldType,
+  CustomCellConfig,
 } from "@/components/data-table/types";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -28,10 +29,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { formatDateTime, hasValueChanged } from "./utils";
 import { TableCell } from "@/components/ui/table";
 import { Save, X } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { cn } from "@/lib/utils";
 
 // ===================================================================
 // CELL COMPONENTS ARCHITECTURE OVERVIEW
@@ -73,7 +80,11 @@ const isEmpty = (value: any): boolean => {
 };
 
 // Helper function to check if value should be considered empty for a specific field type
-const isValueEmpty = (value: any, type: DataTableFieldType): boolean => {
+const isValueEmpty = (
+  value: any,
+  type: DataTableFieldType,
+  customConfig?: CustomCellConfig<any, any>
+): boolean => {
   switch (type) {
     case "boolean":
       return false; // Boolean values are never considered "empty" - false is a valid value
@@ -83,6 +94,10 @@ const isValueEmpty = (value: any, type: DataTableFieldType): boolean => {
       return value === null || value === undefined;
     case "link":
       return isEmpty(value);
+    case "custom":
+      return customConfig?.isEmpty
+        ? customConfig.isEmpty(value)
+        : isEmpty(value);
     default:
       return isEmpty(value);
   }
@@ -98,17 +113,24 @@ const renderCellValueWithEmptyCheck = (
   value: any,
   type: DataTableFieldType,
   placeholder?: string,
-  customRender?: (value: any) => React.ReactNode,
-  timezone?: string
+  customRender?: (value: any, row?: any) => React.ReactNode,
+  timezone?: string,
+  customConfig?: CustomCellConfig<any, any>,
+  row?: any
 ): React.ReactNode => {
   // Always check for empty values first, regardless of custom render
-  if (isValueEmpty(value, type)) {
+  if (isValueEmpty(value, type, customConfig)) {
     return renderEmptyState(placeholder);
+  }
+
+  // For custom type, use the custom render function
+  if (type === "custom" && customConfig?.render) {
+    return customConfig.render(value, row || {});
   }
 
   // If not empty and custom render provided, use custom render
   if (customRender) {
-    return customRender(value);
+    return customRender(value, row);
   }
 
   // Otherwise use default rendering for non-empty values
@@ -165,6 +187,10 @@ const renderCellValueDefault = (
           <ExternalLink className="h-3 w-3" />
         </Link>
       );
+
+    case "custom":
+      // Custom types should be handled in renderCellValueWithEmptyCheck
+      return <span>{String(value)}</span>;
 
     case "text":
     default:
@@ -304,16 +330,23 @@ export function EditorActionCell({ onSave, onCancel }: EditorActionCellProps) {
   return (
     <TableCell className="p-2 w-[68px] min-w-[68px] max-w-[68px]">
       <div className="flex flex-col items-center justify-center gap-1 w-[52px] min-w-[52px] max-w-[52px] mx-auto">
-        <Button size="icon" onClick={onSave} className="h-8 w-8 p-0">
-          <Save className="size-4" />
+        <Button
+          size="icon"
+          variant="ghost"
+          onClick={onSave}
+          className="h-8 w-8 p-0"
+        >
+          <Save className="w-4 h-4" />
+          <span className="sr-only">Save</span>
         </Button>
         <Button
           size="icon"
-          variant="destructive"
+          variant="ghost"
           onClick={onCancel}
-          className="h-8 w-8 p-0"
+          className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
         >
-          <X className="size-4" />
+          <X className="w-4 h-4" />
+          <span className="sr-only">Cancel</span>
         </Button>
       </div>
     </TableCell>
@@ -342,307 +375,88 @@ export function EditorCell<T extends Record<string, any>>({
 }: EditorCellProps<T>) {
   const value = editedRow[columnKey as keyof T];
 
-  const renderField = () => {
-    if (config.editable === false) {
-      switch (config.type) {
-        case "boolean":
-          return <Switch checked={value ?? false} disabled />;
-        case "date":
-          return value ? (
-            formatDateTime(value, timezone)
-          ) : (
-            <span className="text-muted-foreground">
-              {config.placeholder || ""}
-            </span>
-          );
-        case "multi-select":
-          return Array.isArray(value) ? (
-            <div className="flex flex-wrap gap-1">
-              {value.map((item: string) => (
-                <span
-                  key={item}
-                  className="inline-flex items-center rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700"
-                >
-                  {item}
-                </span>
-              ))}
-            </div>
-          ) : (
-            <span className="text-muted-foreground">
-              {config.placeholder || ""}
-            </span>
-          );
-        case "image":
-          return value ? (
-            <Avatar className="h-8 w-8">
-              <AvatarImage src={value} alt="Image" />
-              <AvatarFallback className="text-xs">IMG</AvatarFallback>
-            </Avatar>
-          ) : (
-            <span className="text-muted-foreground">
-              {config.placeholder || "No image"}
-            </span>
-          );
-        case "link":
-          return value ? (
-            <Link
-              href={value}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 underline"
-            >
-              <ExternalLink className="h-3 w-3" />
-              {value}
-            </Link>
-          ) : (
-            <span className="text-muted-foreground">
-              {config.placeholder || "No link"}
-            </span>
-          );
-        default:
-          return value || config.placeholder || "";
-      }
-    }
+  // For non-editable fields, show read-only display
+  if (config.editable === false) {
+    return (
+      <TableCell className="p-2 min-w-0">
+        {renderCellValueWithEmptyCheck(
+          value,
+          config.type,
+          config.placeholder,
+          config.render ? (val) => config.render!(val, editedRow) : undefined,
+          timezone,
+          config.custom,
+          editedRow
+        )}
+      </TableCell>
+    );
+  }
 
-    switch (config.type) {
-      case "text":
-        return (
-          <Input
-            value={value || ""}
-            onChange={(e) => onFieldChange(columnKey, e.target.value)}
-            placeholder={config.placeholder}
-            className="h-8"
-          />
-        );
-
-      case "number":
-        return (
-          <Input
-            type="number"
-            value={value || ""}
-            onChange={(e) => onFieldChange(columnKey, Number(e.target.value))}
-            placeholder={config.placeholder}
-            className="h-8"
-          />
-        );
-
-      case "boolean":
-        return (
-          <Switch
-            checked={value ?? false}
-            onCheckedChange={(checked) => onFieldChange(columnKey, checked)}
-          />
-        );
-
-      case "select":
-        return (
-          <Select
-            value={value || ""}
-            onValueChange={(newValue) => onFieldChange(columnKey, newValue)}
-          >
-            <SelectTrigger className="h-8">
-              <SelectValue placeholder={config.placeholder} />
-            </SelectTrigger>
-            <SelectContent>
-              {config.options?.map((option: string) => (
-                <SelectItem key={option} value={option}>
-                  {option}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        );
-
-      case "date":
-        return (
-          <DateTimePicker
-            value={value ? new Date(value) : undefined}
-            onChange={(date) =>
-              onFieldChange(columnKey, date ? date.getTime() : null)
-            }
-            compact
-            showLabels={false}
-          />
-        );
-
-      case "multi-select":
-        return (
-          <MultiSelect
-            options={config.options || []}
-            selected={Array.isArray(value) ? value : []}
-            onChange={(selected) => onFieldChange(columnKey, selected)}
-            placeholder={config.placeholder || "Select options..."}
-          />
-        );
-
-      case "image":
-        return (
-          <div className="flex items-center gap-2">
-            <Avatar className="h-8 w-8">
-              <AvatarImage src={value || ""} alt="Image" />
-              <AvatarFallback className="text-xs">IMG</AvatarFallback>
-            </Avatar>
-            <Input
-              value={value || ""}
-              onChange={(e) => onFieldChange(columnKey, e.target.value)}
-              placeholder={config.placeholder || "Enter image URL..."}
-              className="h-8 flex-1"
-            />
-          </div>
-        );
-
-      case "link":
-        return (
-          <div className="flex items-center gap-2">
-            <Input
-              value={value || ""}
-              onChange={(e) => onFieldChange(columnKey, e.target.value)}
-              placeholder={config.placeholder || "Enter URL..."}
-              className="h-8 flex-1"
-            />
-          </div>
-        );
-
-      default:
-        return null;
-    }
-  };
-
+  // For editable fields, use the shared FieldEditor
   return (
     <TableCell className="p-2 min-w-0">
-      <div className="min-w-0">{renderField()}</div>
+      <FieldEditor
+        value={value}
+        type={config.type}
+        options={config.options}
+        placeholder={config.placeholder}
+        customConfig={config.custom}
+        onChange={(newValue) => onFieldChange(columnKey, newValue)}
+      />
     </TableCell>
   );
 }
 
 // -------------------------------------------------------------------
-// CELL INLINE EDITOR COMPONENT
-// The inline editor for the cell (after hovering over the cell and clicking the edit icon)
+// FIELD EDITOR COMPONENT
+// The editor for the field (used by both inline and row editors)
 // -------------------------------------------------------------------
 
-interface CellInlineEditorProps<T> {
-  value: any;
-  type: DataTableFieldType;
-  options?: string[];
-  onSave: (value: any) => void;
-  placeholder?: string;
-}
-
-export function CellInlineEditor<T>({
+// Shared field editor component that can be used by both inline and row editors
+function FieldEditor<T>({
   value,
   type,
   options,
-  onSave,
   placeholder,
-}: CellInlineEditorProps<T>) {
-  const [editValue, setEditValue] = useState(value);
+  customConfig,
+  onChange,
+  onKeyDown,
+}: {
+  value: any;
+  type: DataTableFieldType;
+  options?: string[];
+  placeholder?: string;
+  customConfig?: CustomCellConfig<any, any>;
+  onChange: (value: any) => void;
+  onKeyDown?: (e: React.KeyboardEvent) => void;
+}) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const isInteractingRef = useRef(false);
 
-  useEffect(() => {
-    setEditValue(value);
-  }, [value]);
-
-  // Auto-focus on mount for non-boolean and non-multi-select fields
+  // Auto-focus on mount for text inputs
   useEffect(() => {
     if (
-      type !== "boolean" &&
-      type !== "multi-select" &&
-      type !== "date" &&
-      inputRef.current
+      type === "text" ||
+      type === "number" ||
+      type === "image" ||
+      type === "link"
     ) {
-      inputRef.current.focus();
+      // Small delay to ensure component is fully rendered
+      const timeoutId = setTimeout(() => {
+        inputRef.current?.focus();
+      }, 0);
+
+      return () => clearTimeout(timeoutId);
     }
-  }, [type]);
-
-  const handleSave = useCallback(() => {
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-      saveTimeoutRef.current = null;
-    }
-    onSave(editValue);
-  }, [editValue, onSave]);
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      handleSave();
-    } else if (e.key === "Escape") {
-      setEditValue(value);
-      onSave(value); // Cancel by saving original value
-    }
-  };
-
-  // Handle blur with a delay for complex components
-  const handleBlur = useCallback(
-    (e: React.FocusEvent) => {
-      // For complex components, use a timeout to allow for internal focus changes
-      if (type === "multi-select" || type === "date") {
-        // Clear any existing timeout
-        if (saveTimeoutRef.current) {
-          clearTimeout(saveTimeoutRef.current);
-        }
-
-        // Set a timeout to check if focus is still within the component
-        saveTimeoutRef.current = setTimeout(() => {
-          // Check if the currently focused element is still within our container
-          const activeElement = document.activeElement;
-          const isStillFocused =
-            containerRef.current &&
-            (containerRef.current.contains(activeElement) ||
-              // Also check for popover content that might be rendered outside
-              activeElement?.closest('[role="dialog"]') ||
-              activeElement?.closest("[data-radix-popper-content-wrapper]"));
-
-          if (!isStillFocused && !isInteractingRef.current) {
-            handleSave();
-          }
-          saveTimeoutRef.current = null;
-        }, 150); // Small delay to allow for focus transitions
-      } else {
-        // For simple components, save immediately on blur
-        if (
-          containerRef.current &&
-          !containerRef.current.contains(e.relatedTarget as Node)
-        ) {
-          handleSave();
-        }
-      }
-    },
-    [type, handleSave]
-  );
-
-  // Handle mouse interactions to prevent premature saves
-  const handleMouseDown = useCallback(() => {
-    isInteractingRef.current = true;
-  }, []);
-
-  const handleMouseUp = useCallback(() => {
-    // Reset interaction flag after a short delay
-    setTimeout(() => {
-      isInteractingRef.current = false;
-    }, 100);
-  }, []);
-
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-    };
-  }, []);
+  }, []); // Empty dependency array - only run once on mount
 
   switch (type) {
     case "text":
       return (
         <Input
           ref={inputRef}
-          value={editValue || ""}
-          onChange={(e) => setEditValue(e.target.value)}
-          onBlur={handleSave}
-          onKeyDown={handleKeyDown}
+          value={value || ""}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={onKeyDown}
           className="h-8"
           placeholder={placeholder}
         />
@@ -653,35 +467,20 @@ export function CellInlineEditor<T>({
         <Input
           ref={inputRef}
           type="number"
-          value={editValue || ""}
-          onChange={(e) => setEditValue(Number(e.target.value))}
-          onBlur={handleSave}
-          onKeyDown={handleKeyDown}
+          value={value || ""}
+          onChange={(e) => onChange(Number(e.target.value))}
+          onKeyDown={onKeyDown}
           className="h-8"
           placeholder={placeholder}
         />
       );
 
     case "boolean":
-      return (
-        <Switch
-          checked={editValue ?? false}
-          onCheckedChange={(checked) => {
-            setEditValue(checked);
-            onSave(checked);
-          }}
-        />
-      );
+      return <Switch checked={value ?? false} onCheckedChange={onChange} />;
 
     case "select":
       return (
-        <Select
-          value={editValue || ""}
-          onValueChange={(value) => {
-            setEditValue(value);
-            onSave(value);
-          }}
-        >
+        <Select value={value || ""} onValueChange={onChange}>
           <SelectTrigger className="h-8">
             <SelectValue placeholder={placeholder} />
           </SelectTrigger>
@@ -697,59 +496,37 @@ export function CellInlineEditor<T>({
 
     case "date":
       return (
-        <div
-          ref={containerRef}
-          onBlur={handleBlur}
-          onMouseDown={handleMouseDown}
-          onMouseUp={handleMouseUp}
-        >
-          <DateTimePicker
-            value={editValue ? new Date(editValue) : undefined}
-            onChange={(date) => {
-              const timestamp = date ? date.getTime() : null;
-              setEditValue(timestamp);
-              // Don't auto-save on every change for date picker
-            }}
-            compact
-            showLabels={false}
-          />
-        </div>
+        <DateTimePicker
+          value={value ? new Date(value) : undefined}
+          onChange={(date) => onChange(date ? date.getTime() : null)}
+          compact
+          showLabels={false}
+        />
       );
 
     case "multi-select":
       return (
-        <div
-          ref={containerRef}
-          onBlur={handleBlur}
-          onMouseDown={handleMouseDown}
-          onMouseUp={handleMouseUp}
-        >
-          <MultiSelect
-            options={options || []}
-            selected={Array.isArray(editValue) ? editValue : []}
-            onChange={(selected) => {
-              setEditValue(selected);
-              // Don't auto-save on every change for multi-select
-            }}
-            placeholder={placeholder || "Select options..."}
-            withIndividualRemove={false}
-          />
-        </div>
+        <MultiSelect
+          options={options || []}
+          selected={Array.isArray(value) ? value : []}
+          onChange={onChange}
+          placeholder={placeholder || "Select options..."}
+          withIndividualRemove={false}
+        />
       );
 
     case "image":
       return (
         <div className="flex items-center gap-2">
           <Avatar className="h-8 w-8">
-            <AvatarImage src={editValue || ""} alt="Image" />
+            <AvatarImage src={value || ""} alt="Image" />
             <AvatarFallback className="text-xs">IMG</AvatarFallback>
           </Avatar>
           <Input
             ref={inputRef}
-            value={editValue || ""}
-            onChange={(e) => setEditValue(e.target.value)}
-            onBlur={handleSave}
-            onKeyDown={handleKeyDown}
+            value={value || ""}
+            onChange={(e) => onChange(e.target.value)}
+            onKeyDown={onKeyDown}
             className="h-8 flex-1"
             placeholder={placeholder || "Enter image URL..."}
           />
@@ -759,32 +536,155 @@ export function CellInlineEditor<T>({
     case "link":
       return (
         <div className="flex items-center gap-2">
-          {editValue && (
+          {value && (
             <Link
-              href={editValue}
+              href={value}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 underline text-sm"
             >
-              {editValue}
               <ExternalLink className="h-3 w-3" />
             </Link>
           )}
           <Input
             ref={inputRef}
-            value={editValue || ""}
-            onChange={(e) => setEditValue(e.target.value)}
-            onBlur={handleSave}
-            onKeyDown={handleKeyDown}
+            value={value || ""}
+            onChange={(e) => onChange(e.target.value)}
+            onKeyDown={onKeyDown}
             placeholder={placeholder || "Enter URL..."}
             className="h-8 flex-1"
           />
         </div>
       );
 
+    case "custom":
+      return customConfig?.renderEditor ? (
+        customConfig.renderEditor(value, onChange)
+      ) : (
+        <Input
+          ref={inputRef}
+          value={String(value || "")}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={onKeyDown}
+          placeholder={placeholder || "Enter value..."}
+          className="h-8"
+        />
+      );
+
     default:
       return <div>{value}</div>;
   }
+}
+
+// -------------------------------------------------------------------
+// CELL INLINE EDITOR COMPONENT
+// The inline editor for the cell (after hovering over the cell and clicking the edit icon)
+// -------------------------------------------------------------------
+
+interface CellInlineEditorProps<T> {
+  value: any;
+  type: DataTableFieldType;
+  options?: string[];
+  onSave: (value: any) => void;
+  onCancel: () => void;
+  placeholder?: string;
+  customConfig?: CustomCellConfig<any, any>;
+}
+
+export function CellInlineEditor<T>({
+  value,
+  type,
+  options,
+  onSave,
+  onCancel,
+  placeholder,
+  customConfig,
+}: CellInlineEditorProps<T>) {
+  const [editValue, setEditValue] = useState(value);
+  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+
+  useEffect(() => {
+    setEditValue(value);
+  }, [value]);
+
+  const handleSave = () => {
+    onSave(editValue);
+    setIsPopoverOpen(false);
+  };
+
+  const handleCancel = () => {
+    setEditValue(value);
+    onCancel();
+    setIsPopoverOpen(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleSave();
+    } else if (e.key === "Escape") {
+      handleCancel();
+    }
+  };
+
+  return (
+    <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
+      <PopoverTrigger asChild>
+        <div
+          className="relative flex items-center gap-2 h-full flex-1 p-2 cursor-pointer"
+          onMouseEnter={() => setIsPopoverOpen(true)}
+          onMouseLeave={(e) => {
+            // Only close if not moving to the popover content
+            const relatedTarget = e.relatedTarget as Element;
+            if (!relatedTarget?.closest("[data-radix-popover-content]")) {
+              setIsPopoverOpen(false);
+            }
+          }}
+        >
+          <div className="flex-1">
+            <FieldEditor
+              value={editValue}
+              type={type}
+              options={options}
+              placeholder={placeholder}
+              customConfig={customConfig}
+              onChange={setEditValue}
+              onKeyDown={handleKeyDown}
+            />
+          </div>
+        </div>
+      </PopoverTrigger>
+      <PopoverContent
+        className="p-2 z-0"
+        side="bottom"
+        align="center"
+        sideOffset={0}
+        style={{ width: "var(--radix-popover-trigger-width)" }}
+        onMouseEnter={() => setIsPopoverOpen(true)}
+        onMouseLeave={() => setIsPopoverOpen(false)}
+      >
+        <div className="flex justify-center items-center gap-2">
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={handleSave}
+            className="h-6 w-6 p-0"
+          >
+            <Save className="h-4 w-4" />
+            <span className="sr-only">Save</span>
+          </Button>
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={handleCancel}
+            className="h-6 w-6 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+          >
+            <X className="h-4 w-4" />
+            <span className="sr-only">Cancel</span>
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 // -------------------------------------------------------------------
@@ -800,6 +700,8 @@ interface EditableCellProps {
   placeholder?: string;
   render?: (value: any) => React.ReactNode;
   timezone?: string;
+  customConfig?: CustomCellConfig<any, any>;
+  row?: any;
 }
 
 // Editable cell component with integrated hover state and TableCell wrapper
@@ -811,6 +713,8 @@ const EditableCell = memo(function EditableCell({
   placeholder,
   render,
   timezone,
+  customConfig,
+  row,
 }: EditableCellProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -833,22 +737,26 @@ const EditableCell = memo(function EditableCell({
 
   return (
     <TableCell
-      className="p-2 min-w-0"
+      className={cn("min-w-0", isEditing ? "p-0" : "p-2")}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       {isEditing ? (
-        <div className="min-w-0 w-full" ref={editTriggerRef}>
+        <div className="flex min-w-0 w-full h-full" ref={editTriggerRef}>
           <CellInlineEditor
             value={value}
             type={type}
             options={options}
             placeholder={placeholder}
+            customConfig={customConfig}
             onSave={(newValue) => {
               // Only save if the value actually changed
               if (hasValueChanged(value, newValue)) {
                 onSave(newValue);
               }
+              setIsEditing(false);
+            }}
+            onCancel={() => {
               setIsEditing(false);
             }}
           />
@@ -862,7 +770,9 @@ const EditableCell = memo(function EditableCell({
               type,
               placeholder,
               render,
-              timezone
+              timezone,
+              customConfig,
+              row
             )}
           </div>
           {isHovered && (
@@ -920,7 +830,9 @@ export const DataTableCell = memo(
             config.type,
             config.placeholder,
             config.render ? (val) => config.render!(val, row) : undefined,
-            timezone
+            timezone,
+            config.custom,
+            row
           )}
         </TableCell>
       );
@@ -934,6 +846,8 @@ export const DataTableCell = memo(
         options={config.options}
         placeholder={config.placeholder}
         render={config.render ? (val) => config.render!(val, row) : undefined}
+        customConfig={config.custom}
+        row={row}
         onSave={(newValue) => {
           const updatedRow = { ...row, [columnKey]: newValue } as T;
           onRowSave(updatedRow);
