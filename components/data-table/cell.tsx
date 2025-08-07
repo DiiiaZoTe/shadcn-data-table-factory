@@ -34,7 +34,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { formatDateTime, hasValueChanged } from "./utils";
+import { formatDateTime, hasValueChanged, isValueEmpty } from "./utils";
 import { TableCell } from "@/components/ui/table";
 import { Save, X } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -73,35 +73,6 @@ import { cn } from "@/lib/utils";
 // -------------------------------------------------------------------
 // UTILITY FUNCTIONS
 // -------------------------------------------------------------------
-
-// Helper function to check if a value is empty/null/undefined
-const isEmpty = (value: any): boolean => {
-  return value === null || value === undefined || value === "";
-};
-
-// Helper function to check if value should be considered empty for a specific field type
-const isValueEmpty = (
-  value: any,
-  type: DataTableFieldType,
-  customConfig?: CustomCellConfig<any, any>
-): boolean => {
-  switch (type) {
-    case "boolean":
-      return false; // Boolean values are never considered "empty" - false is a valid value
-    case "multi-select":
-      return !Array.isArray(value) || value.length === 0;
-    case "number":
-      return value === null || value === undefined;
-    case "link":
-      return isEmpty(value);
-    case "custom":
-      return customConfig?.isEmpty
-        ? customConfig.isEmpty(value)
-        : isEmpty(value);
-    default:
-      return isEmpty(value);
-  }
-};
 
 // Helper function to render empty state with placeholder
 const renderEmptyState = (placeholder?: string) => (
@@ -601,7 +572,6 @@ export function CellInlineEditor<T>({
   customConfig,
 }: CellInlineEditorProps<T>) {
   const [editValue, setEditValue] = useState(value);
-  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
 
   useEffect(() => {
     setEditValue(value);
@@ -609,13 +579,11 @@ export function CellInlineEditor<T>({
 
   const handleSave = () => {
     onSave(editValue);
-    setIsPopoverOpen(false);
   };
 
   const handleCancel = () => {
     setEditValue(value);
     onCancel();
-    setIsPopoverOpen(false);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -627,63 +595,40 @@ export function CellInlineEditor<T>({
   };
 
   return (
-    <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
-      <PopoverTrigger asChild>
-        <div
-          className="relative flex items-center gap-2 h-full flex-1 p-2 cursor-pointer"
-          onMouseEnter={() => setIsPopoverOpen(true)}
-          onMouseLeave={(e) => {
-            // Only close if not moving to the popover content
-            const relatedTarget = e.relatedTarget as Element;
-            if (!relatedTarget?.closest("[data-radix-popover-content]")) {
-              setIsPopoverOpen(false);
-            }
-          }}
+    <div className="relative flex items-center gap-2 h-full flex-1 p-2 cursor-pointer">
+      <div className="flex-1 pr-6">
+        <FieldEditor
+          value={editValue}
+          type={type}
+          options={options}
+          placeholder={placeholder}
+          customConfig={customConfig}
+          onChange={setEditValue}
+          onKeyDown={handleKeyDown}
+        />
+      </div>
+
+      <div className="absolute right-1 flex flex-col justify-center items-center">
+        <Button
+          size="icon"
+          variant="ghost"
+          onClick={handleSave}
+          className="h-6 w-6 p-0"
         >
-          <div className="flex-1">
-            <FieldEditor
-              value={editValue}
-              type={type}
-              options={options}
-              placeholder={placeholder}
-              customConfig={customConfig}
-              onChange={setEditValue}
-              onKeyDown={handleKeyDown}
-            />
-          </div>
-        </div>
-      </PopoverTrigger>
-      <PopoverContent
-        className="p-2 z-0"
-        side="bottom"
-        align="center"
-        sideOffset={0}
-        style={{ width: "var(--radix-popover-trigger-width)" }}
-        onMouseEnter={() => setIsPopoverOpen(true)}
-        onMouseLeave={() => setIsPopoverOpen(false)}
-      >
-        <div className="flex justify-center items-center gap-2">
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={handleSave}
-            className="h-6 w-6 p-0"
-          >
-            <Save className="h-4 w-4" />
-            <span className="sr-only">Save</span>
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={handleCancel}
-            className="h-6 w-6 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
-          >
-            <X className="h-4 w-4" />
-            <span className="sr-only">Cancel</span>
-          </Button>
-        </div>
-      </PopoverContent>
-    </Popover>
+          <Save className="h-4 w-4" />
+          <span className="sr-only">Save</span>
+        </Button>
+        <Button
+          size="icon"
+          variant="ghost"
+          onClick={handleCancel}
+          className="h-6 w-6 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+        >
+          <X className="h-4 w-4" />
+          <span className="sr-only">Cancel</span>
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -804,7 +749,7 @@ interface DataTableCellProps<T> {
   columnKey: string;
   config: any;
   editable: boolean;
-  onRowSave: (row: T) => void;
+  onRowSave: (row: T, oldRow: T) => void;
   timezone?: string;
 }
 
@@ -850,7 +795,7 @@ export const DataTableCell = memo(
         row={row}
         onSave={(newValue) => {
           const updatedRow = { ...row, [columnKey]: newValue } as T;
-          onRowSave(updatedRow);
+          onRowSave(updatedRow, row);
         }}
         timezone={timezone}
       />

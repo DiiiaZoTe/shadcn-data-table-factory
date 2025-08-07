@@ -37,15 +37,20 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { DataTableProps, DataTableAction } from "./types";
+import type { DataTableProps, DataTableAction, DataTableShape } from "./types";
 import { ColumnFilter } from "./column-filters";
 import { ColumnControls } from "./column-controls";
 import { DataTablePagination } from "./pagination";
 import { DataTableRow, RowEditor } from "./row";
 import { ExportButton, exportToExcel, getVisibleColumns } from "./export";
-import { getTimezoneAbbreviation } from "./utils";
+import {
+  getTimezoneAbbreviation,
+  hasValueChanged,
+  isValueEmpty,
+} from "./utils";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 // Stable empty array to prevent infinite re-renders
 const EMPTY_ACTIONS: DataTableAction<any>[] = [];
@@ -73,12 +78,41 @@ export function DataTableFactory<T extends Record<string, any>>({
   exportable = false,
   timezone,
 }: DataTableProps<T>) {
-  // Provide default onRowSave function if none is provided
-  const handleRowSave =
-    onRowSave ||
-    ((row: T) => {
-      console.log("Row saved:", row);
+  // Handle row save
+  const handleRowSave = (row: T, oldRow: T, shape: DataTableShape<T>) => {
+    const hasChanges = Object.keys(row).some((key) => {
+      const oldValue = oldRow[key as keyof T];
+      const newValue = row[key as keyof T];
+      return hasValueChanged(oldValue, newValue);
     });
+
+    const missingFields = [] as (keyof T)[];
+    for (const key in shape) {
+      const config = shape[key as keyof T];
+      if (
+        config?.required &&
+        //@ts-ignore
+        isValueEmpty(row[key as keyof T], config.type, config.custom)
+      ) {
+        missingFields.push(key as keyof T);
+      }
+    }
+    if (missingFields.length > 0) {
+      toast.error(`Missing required fields: ${missingFields.join(", ")}`);
+      return;
+    }
+
+    // Only save if there are actual changes
+    if (hasChanges) {
+      onRowSave?.(row, oldRow);
+      if (!onRowSave)
+        console.log("No onRowSave function provided, logging instead:", {
+          row,
+          oldRow,
+        });
+    }
+  };
+
   // Pagination configuration with defaults
   const paginationConfig = {
     enabled: pagination.enabled ?? true,
@@ -419,6 +453,9 @@ export function DataTableFactory<T extends Record<string, any>>({
                       type={config.type}
                       options={config.options}
                       filterable={true}
+                      customConfig={
+                        config.type === "custom" ? config.custom : undefined
+                      }
                     />
                   ) : (
                     <div className="h-8" />
@@ -729,7 +766,7 @@ export function DataTableFactory<T extends Record<string, any>>({
 
       {/* Table */}
       <div className="rounded-md border">
-        <Table withBorders={withBorders} style={{height: "1px"}}>
+        <Table withBorders={withBorders} style={{ height: "1px" }}>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
@@ -767,7 +804,7 @@ export function DataTableFactory<T extends Record<string, any>>({
                     columnOrder={columnOrder}
                     columnVisibility={columnVisibility}
                     onSave={(updatedRow) => {
-                      handleRowSave(updatedRow);
+                      handleRowSave(updatedRow, row.original, shape);
                       setEditingRowId(null);
                     }}
                     onCancel={() => setEditingRowId(null)}
@@ -786,7 +823,9 @@ export function DataTableFactory<T extends Record<string, any>>({
                     actions={actions}
                     editable={editable}
                     onToggleSelect={createRowToggle(row.id)}
-                    onRowSave={handleRowSave}
+                    onRowSave={(updatedRow) => {
+                      handleRowSave(updatedRow, row.original, shape);
+                    }}
                     onEdit={createEditHandler(row.id)}
                     showSelection={!!onSelectionChange}
                     timezone={timezone}

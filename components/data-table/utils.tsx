@@ -1,3 +1,34 @@
+import { CustomCellConfig, DataTableFieldType } from "./types";
+
+// Helper function to check if a value is empty/null/undefined
+const isEmpty = (value: any): boolean => {
+  return value === null || value === undefined || value === "";
+};
+
+// Helper function to check if value should be considered empty for a specific field type
+export const isValueEmpty = (
+  value: any,
+  type: DataTableFieldType,
+  customConfig?: CustomCellConfig<any, any>
+): boolean => {
+  switch (type) {
+    case "boolean":
+      return false; // Boolean values are never considered "empty" - false is a valid value
+    case "multi-select":
+      return !Array.isArray(value) || value.length === 0;
+    case "number":
+      return value === null || value === undefined;
+    case "link":
+      return isEmpty(value);
+    case "custom":
+      return customConfig?.isEmpty
+        ? customConfig.isEmpty(value)
+        : isEmpty(value);
+    default:
+      return isEmpty(value);
+  }
+};
+
 /**
  * Get timezone abbreviation from timezone name
  */

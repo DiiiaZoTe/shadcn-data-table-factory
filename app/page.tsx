@@ -32,6 +32,7 @@ type User = {
   name: string;
   email: string;
   age: number | null;
+  avatar: string | null;
   isActive: boolean;
   role: string | null;
   joinDate: string | null;
@@ -110,6 +111,7 @@ const generateUsers = (count: number): User[] => {
       age: hasEmptyData && i % 40 === 0 ? null : 20 + (i % 50),
       isActive: Math.random() > 0.3,
       role: hasEmptyData && i % 50 === 0 ? null : roles[i % roles.length],
+      avatar: hasEmptyData && i % 60 === 0 ? null : `https://i.pravatar.cc/150?img=${i % 100}`,
       joinDate:
         hasEmptyData && i % 60 === 0
           ? null
@@ -141,6 +143,14 @@ export default function ExamplePage() {
     name: {
       label: "Full Name",
       type: "text",
+      // editable: true,
+      // sortable: true,
+      // filterable: true,
+      // searchable: true,
+    },
+    avatar: {
+      label: "Avatar",
+      type: "image",
       // editable: true,
       // sortable: true,
       // filterable: true,

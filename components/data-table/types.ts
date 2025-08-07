@@ -89,6 +89,8 @@ export interface CustomCellConfig<T, K extends keyof T> {
   render: (value: T[K], row: T) => ReactNode
   /** Custom editor component for edit mode (optional) - only responsible for editing, cell handles save/cancel */
   renderEditor?: (value: T[K], onChange: (value: T[K]) => void) => ReactNode
+  /** Custom filter component for column filtering (optional) */
+  renderFilter?: (filterValue: string | string[], onChange: (value: string | string[] | undefined) => void) => ReactNode
   /** Custom function to check if value is empty (optional) */
   isEmpty?: (value: T[K]) => boolean
   /** Custom function to format value for search (optional) */
@@ -115,6 +117,8 @@ type BaseColumnConfig = {
   searchable?: boolean
   /** placeholder to be displayed when no value is provided */
   placeholder?: string
+  /** is the field required? */
+  required?: boolean
 }
 
 /** Column configuration for custom type */
@@ -177,7 +181,7 @@ export type DataTableProps<T> = {
   /** enables/disables row editing */
   editable?: boolean
   /** callback function to be called when a row is saved */
-  onRowSave?: (row: T) => void
+  onRowSave?: (row: T, oldRow: T) => void
   /** callback function to be called when a row is selected */
   onSelectionChange?: (selectedRows: T[]) => void
   /** pagination configuration */

@@ -116,7 +116,7 @@ interface DataTableRowProps<T> {
   actions: DataTableAction<T>[];
   editable: boolean;
   onToggleSelect: () => void;
-  onRowSave: (row: T) => void;
+  onRowSave: (row: T, oldRow: T) => void;
   onEdit: () => void;
   showSelection?: boolean;
   timezone?: string;

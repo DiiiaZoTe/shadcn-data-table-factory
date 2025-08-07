@@ -464,6 +464,18 @@ const shape: DataTableShape<User> = {
         );
       },
 
+      // Custom filter for team members
+      renderFilter: (filterValue: string | string[], onChange: (value: string | string[] | undefined) => void) => {
+        return (
+          <Input
+            placeholder="Filter by name or role..."
+            value={(filterValue as string) ?? ""}
+            onChange={(e) => onChange(e.target.value === "" ? undefined : e.target.value)}
+            className="h-8 w-full"
+          />
+        );
+      },
+
       // Custom functions for table operations
       isEmpty: (value: TeamMember[]) => !value || value.length === 0,
       getSearchValue: (value: TeamMember[]) => 
@@ -486,6 +498,9 @@ const shape: DataTableShape<User> = {
 - **`renderEditor`** (optional): Custom editor component `(value, onChange) => ReactNode`
   - **Note**: Editor only handles input rendering - save/cancel buttons are automatically provided
   - **Simplified API**: No need to manage save/cancel logic in your editor
+- **`renderFilter`** (optional): Custom filter component `(filterValue, onChange) => ReactNode`
+  - **Note**: Filter handles input rendering and calls onChange with new filter value
+  - **Fallback**: Defaults to text input if not provided
 - **`isEmpty`** (optional): Custom empty value check `(value) => boolean`
 - **`getSearchValue`** (optional): Extract searchable text `(value) => string`
 - **`getExportValue`** (optional): Format for Excel export `(value) => any`
